@@ -1,57 +1,70 @@
+// --- Category enum ---
+const BpCategory = {
+  Low: "Low",
+  Ideal: "Ideal",
+  PreHigh: "PreHigh",
+  High: "High",
+};
 
-export const BpCategory = { Low:'Low', Ideal:'Ideal', PreHigh:'PreHigh', High:'High' };
-
-export function classify(systolic, diastolic) {
-  if (systolic < 70 || systolic > 190 || diastolic < 40 || diastolic > 100 || systolic <= diastolic) {
+// --- Classification logic ---
+// High:    systolic >= 140 OR diastolic >= 90
+// PreHigh: systolic >= 120 OR diastolic >= 80 (and not High)
+// Ideal:   systolic 90–119 AND diastolic 60–79
+// Low:     otherwise, within allowed range
+function classifyBp(systolic, diastolic) {
+  if (
+    systolic < 70 ||
+    systolic > 190 ||
+    diastolic < 40 ||
+    diastolic > 100 ||
+    systolic <= diastolic
+  ) {
     throw new RangeError("Invalid blood pressure input.");
   }
+
   if (systolic >= 140 || diastolic >= 90) return BpCategory.High;
   if (systolic >= 120 || diastolic >= 80) return BpCategory.PreHigh;
-  if (systolic >= 90 && systolic <= 119 && diastolic >= 60 && diastolic <= 79) return BpCategory.Ideal;
+  if (
+    systolic >= 90 &&
+    systolic <= 119 &&
+    diastolic >= 60 &&
+    diastolic <= 79
+  ) {
+    return BpCategory.Ideal;
+  }
   return BpCategory.Low;
 }
 
-
-export function pulsePressure(s, d) {
-  const v = s - d;
-  return { value: v, isWide: v > 60 };
+// --- New feature: Pulse Pressure + "Wide" flag ---
+function computePulsePressure(systolic, diastolic) {
+  const value = systolic - diastolic;
+  return { value, isWide: value > 60 };
 }
 
+// Expose for tests later if needed
+window.BpApp = { BpCategory, classifyBp, computePulsePressure };
 
-import { ApplicationInsights } from '@microsoft/applicationinsights-web';
-const ai = new ApplicationInsights({
-  config: {
-    connectionString: window.appInsightsCfg?.connectionString || "",
-    disableExceptionTracking: false,
-    enableAutoRouteTracking: true,
-  },
-});
-try { ai.loadAppInsights(); } catch {}
+// --- UI wiring ---
+const form = document.getElementById("bp-form");
+const sysInput = document.getElementById("sys");
+const diaInput = document.getElementById("dia");
+const resultBox = document.getElementById("result");
 
-function trackClassification(sys, dia, category, pp) {
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  const systolic = Number(sysInput.value);
+  const diastolic = Number(diaInput.value);
+
   try {
-    ai.trackEvent({ name: "BpClassified",
-      properties: { category, wide: String(pp.isWide) },
-      measurements: { systolic: sys, diastolic: dia, pulsePressure: pp.value }
-    });
-  } catch {}
-}
+    const category = classifyBp(systolic, diastolic);
+    const pp = computePulsePressure(systolic, diastolic);
 
-// --- Wire up UI ---
-const form = document.getElementById('bp-form');
-const sysEl = document.getElementById('sys');
-const diaEl = document.getElementById('dia');
-const out = document.getElementById('result');
-
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const s = Number(sysEl.value), d = Number(diaEl.value);
-  try {
-    const cat = classify(s, d);
-    const pp = pulsePressure(s, d);
-    out.textContent = `Category: ${cat} | Pulse Pressure: ${pp.value} mmHg ${pp.isWide ? "(Wide)" : ""}`;
-    trackClassification(s, d, cat, pp);
+    resultBox.textContent = `Category: ${category} | Pulse Pressure: ${pp.value} mmHg ${
+      pp.isWide ? "(Wide)" : ""
+    }`;
   } catch (err) {
-    out.textContent = err.message;
+    resultBox.textContent = err.message;
+    console.error(err);
   }
 });
