@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Blood Pressure Category Calculator</title>
+  <link rel="stylesheet" href="/styles.css"/>
+  <!-- Azure App Insights (replace INSTRUMENTATION_CONNECTION_STRING) -->
+  <script>
+    window.appInsightsCfg = { connectionString: "InstrumentationKey=;IngestionEndpoint=;LiveEndpoint=" }; /* set via env-injection if you prefer */
+  </script>
+</head>
+<body>
+  <main class="card">
+    <h1>Blood Pressure Category</h1>
+
+    <form id="bp-form">
+      <label>Systolic (70–190)
+        <input id="sys" type="number" min="70" max="190" required />
+      </label>
+      <label>Diastolic (40–100)
+        <input id="dia" type="number" min="40" max="100" required />
+      </label>
+      <button type="submit">Calculate</button>
+    </form>
+
+    <section id="result" aria-live="polite"></section>
+    <p class="hint">* Lower limits are inclusive (e.g., systolic ≥ 140 ⇒ High)</p>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
