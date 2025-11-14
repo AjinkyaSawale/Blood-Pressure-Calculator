@@ -1,0 +1,27 @@
+{
+  "name": "cscd-ca1",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "vitest run --environment jsdom --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AjinkyaSawale/Blood-Pressure-Calculator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AjinkyaSawale/Blood-Pressure-Calculator/issues"
+  },
+  "homepage": "https://github.com/AjinkyaSawale/Blood-Pressure-Calculator#readme",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.9",
+    "jsdom": "^27.2.0",
+    "vitest": "^4.0.9"
+  }
+}
+

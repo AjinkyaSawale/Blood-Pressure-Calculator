@@ -1,5 +1,5 @@
 // --- Category enum ---
-const BpCategory = {
+export const BpCategory = {
   Low: "Low",
   Ideal: "Ideal",
   PreHigh: "PreHigh",
@@ -11,7 +11,7 @@ const BpCategory = {
 // PreHigh: systolic >= 120 OR diastolic >= 80 (and not High)
 // Ideal:   systolic 90–119 AND diastolic 60–79
 // Low:     otherwise, within allowed range
-function classifyBp(systolic, diastolic) {
+export function classifyBp(systolic, diastolic) {
   if (
     systolic < 70 ||
     systolic > 190 ||
@@ -36,35 +36,38 @@ function classifyBp(systolic, diastolic) {
 }
 
 // --- New feature: Pulse Pressure + "Wide" flag ---
-function computePulsePressure(systolic, diastolic) {
+export function computePulsePressure(systolic, diastolic) {
   const value = systolic - diastolic;
   return { value, isWide: value > 60 };
 }
 
-// Expose for tests later if needed
-window.BpApp = { BpCategory, classifyBp, computePulsePressure };
+// --- UI wiring (only in browser with DOM) ---
+if (typeof document !== "undefined") {
+  const form = document.getElementById("bp-form");
+  const sysInput = document.getElementById("sys");
+  const diaInput = document.getElementById("dia");
+  const resultBox = document.getElementById("result");
 
-// --- UI wiring ---
-const form = document.getElementById("bp-form");
-const sysInput = document.getElementById("sys");
-const diaInput = document.getElementById("dia");
-const resultBox = document.getElementById("result");
+  if (form && sysInput && diaInput && resultBox) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
+      const systolic = Number(sysInput.value);
+      const diastolic = Number(diaInput.value);
 
-  const systolic = Number(sysInput.value);
-  const diastolic = Number(diaInput.value);
+      try {
+        const category = classifyBp(systolic, diastolic);
+        const pp = computePulsePressure(systolic, diastolic);
 
-  try {
-    const category = classifyBp(systolic, diastolic);
-    const pp = computePulsePressure(systolic, diastolic);
-
-    resultBox.textContent = `Category: ${category} | Pulse Pressure: ${pp.value} mmHg ${
-      pp.isWide ? "(Wide)" : ""
-    }`;
-  } catch (err) {
-    resultBox.textContent = err.message;
-    console.error(err);
+        resultBox.textContent = `Category: ${category} | Pulse Pressure: ${pp.value} mmHg ${
+          pp.isWide ? "(Wide)" : ""
+        }`;
+      } catch (err) {
+        resultBox.textContent = err.message;
+        console.error(err);
+      }
+    });
   }
-});
+}
+
+
