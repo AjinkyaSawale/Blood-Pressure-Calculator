@@ -18,6 +18,19 @@ describe('Blood pressure classification', () => {
     expect(() => classifyBp(200, 80)).toThrow();
     expect(() => classifyBp(120, 120)).toThrow();
   });
+    it('classifies boundary values correctly', () => {
+    // High boundaries
+    expect(classifyBp(140, 80)).toBe(BpCategory.High);   // systolic = 140
+    expect(classifyBp(130, 90)).toBe(BpCategory.High);   // diastolic = 90
+
+    // PreHigh boundaries
+    expect(classifyBp(120, 79)).toBe(BpCategory.PreHigh); // systolic = 120
+    expect(classifyBp(119, 80)).toBe(BpCategory.PreHigh); // diastolic = 80
+
+    // Ideal boundary
+    expect(classifyBp(119, 79)).toBe(BpCategory.Ideal);   // upper edge of ideal
+  });
+
 });
 
 describe('Pulse pressure feature', () => {
