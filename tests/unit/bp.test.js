@@ -43,5 +43,20 @@ describe('Pulse pressure feature', () => {
     expect(pp2.value).toBe(30);
     expect(pp2.isWide).toBe(false);
   });
+
+    it('rejects additional invalid ranges', () => {
+    // systolic out of range
+    expect(() => classifyBp(69, 60)).toThrow();   // below minimum systolic
+    expect(() => classifyBp(191, 80)).toThrow();  // above maximum systolic
+
+    // diastolic out of range
+    expect(() => classifyBp(100, 39)).toThrow();  // below minimum diastolic
+    expect(() => classifyBp(120, 101)).toThrow(); // above maximum diastolic
+
+    // systolic not strictly greater than diastolic
+    expect(() => classifyBp(90, 90)).toThrow();
+    expect(() => classifyBp(85, 86)).toThrow();
+  });
+
 });
 
