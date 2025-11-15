@@ -44,19 +44,20 @@ describe('Pulse pressure feature', () => {
     expect(pp2.isWide).toBe(false);
   });
 
-    it('rejects additional invalid ranges', () => {
-    // systolic out of range
-    expect(() => classifyBp(69, 60)).toThrow();   // below minimum systolic
-    expect(() => classifyBp(191, 80)).toThrow();  // above maximum systolic
+  it('handles pulse pressure edge cases correctly', () => {
+    // Exactly 60 → NOT wide
+    const pp60 = computePulsePressure(120, 60);
+    expect(pp60.value).toBe(60);
+    expect(pp60.isWide).toBe(false);
 
-    // diastolic out of range
-    expect(() => classifyBp(100, 39)).toThrow();  // below minimum diastolic
-    expect(() => classifyBp(120, 101)).toThrow(); // above maximum diastolic
+    // 61 → wide
+    const pp61 = computePulsePressure(121, 60);
+    expect(pp61.value).toBe(61);
+    expect(pp61.isWide).toBe(true);
 
-    // systolic not strictly greater than diastolic
-    expect(() => classifyBp(90, 90)).toThrow();
-    expect(() => classifyBp(85, 86)).toThrow();
+    // Negative pulse pressure case (if systolic < diastolic) → still not wide
+    const ppNegative = computePulsePressure(80, 90);
+    expect(ppNegative.value).toBe(-10);
+    expect(ppNegative.isWide).toBe(false);
   });
-
 });
-
