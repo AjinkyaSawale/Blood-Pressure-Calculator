@@ -1,57 +1,90 @@
-// app.js
+// ---- Blood pressure categories ----
+export const BpCategory = Object.freeze({
+  Low: "Low",
+  Ideal: "Ideal",
+  Elevated: "Elevated",
+  High: "High",
+});
 
-export const BpCategory = {
-  Low: 'Low',
-  Ideal: 'Ideal',
-  Elevated: 'Elevated',   // updated name
-  High: 'High',
-};
-
-// Pure classification function
+// ---- Core classification logic ----
 export function classifyBp(systolic, diastolic) {
-  if (typeof systolic !== "number" || typeof diastolic !== "number")
-    throw new Error("Invalid input");
+  const s = Number(systolic);
+  const d = Number(diastolic);
 
-  if (systolic < 90 || diastolic < 60) return BpCategory.Low;
-  if (systolic < 120 && diastolic < 80) return BpCategory.Ideal;
-  if (systolic >= 140 || diastolic >= 90) return BpCategory.High;
+  // Basic validation based on assignment ranges
+  if (
+    Number.isNaN(s) ||
+    Number.isNaN(d) ||
+    s < 70 ||
+    s > 190 ||
+    d < 40 ||
+    d > 100 ||
+    s <= d // systolic must be strictly greater than diastolic
+  ) {
+    throw new RangeError("Invalid blood pressure input.");
+  }
 
-  // UPDATED: PreHigh → Elevated
-  return BpCategory.Elevated;
+  // High BP
+  if (s >= 140 || d >= 90) {
+    return BpCategory.High;
+  }
+
+  // Elevated (was PreHigh)
+  if (s >= 120 || d >= 80) {
+    return BpCategory.Elevated;
+  }
+
+  // Ideal range
+  if (s >= 90 && s <= 119 && d >= 60 && d <= 79) {
+    return BpCategory.Ideal;
+  }
+
+  // Anything valid but below ideal
+  return BpCategory.Low;
 }
 
-// Pulse pressure logic
+// ---- New feature: pulse pressure calculation ----
 export function computePulsePressure(systolic, diastolic) {
-  const value = systolic - diastolic;
+  const s = Number(systolic);
+  const d = Number(diastolic);
+  const value = s - d;
+
   return {
     value,
-    isWide: value > 60
+    isWide: value > 60,
   };
 }
 
-// UI Logic
-document.addEventListener("DOMContentLoaded", () => {
+// ---- UI wiring (browser only) ----
+if (typeof document !== "undefined") {
   const form = document.getElementById("bp-form");
-  const output = document.getElementById("result");
+  const sysInput = document.getElementById("sys");
+  const diaInput = document.getElementById("dia");
+  const resultEl = document.getElementById("result");
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
+  if (form && sysInput && diaInput && resultEl) {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
 
-    const sys = Number(document.getElementById("systolic").value);
-    const dia = Number(document.getElementById("diastolic").value);
+      const s = Number(sysInput.value);
+      const d = Number(diaInput.value);
 
-    try {
-      const category = classifyBp(sys, dia);
-      const pp = computePulsePressure(sys, dia);
+      try {
+        const category = classifyBp(s, d);
+        const pulse = computePulsePressure(s, d);
 
-      output.textContent =
-        `Category: ${category} | Pulse Pressure: ${pp.value} mmHg ${pp.isWide ? "(Wide)" : ""}`;
-
-    } catch (error) {
-      output.textContent = "Error: Invalid input";
-    }
-  });
-});
-
+        resultEl.textContent =
+          `Category: ${category} | Pulse pressure: ${pulse.value} mmHg` +
+          (pulse.isWide ? " (Wide)" : "");
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Invalid blood pressure input.";
+        resultEl.textContent = message;
+      }
+    });
+  }
+}
 
 
