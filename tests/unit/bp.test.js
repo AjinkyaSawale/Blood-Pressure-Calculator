@@ -22,6 +22,9 @@ describe("Blood pressure classification", () => {
     expect(classifyBp(119, 79)).toBe(BpCategory.Ideal);
     expect(classifyBp(120, 80)).toBe(BpCategory.Elevated); // UPDATED
   });
+  it("classifies low blood pressure correctly", () => {
+  expect(classifyBp(85, 55)).toBe(BpCategory.Low);
+});
 });
 
 describe("Pulse pressure feature", () => {
