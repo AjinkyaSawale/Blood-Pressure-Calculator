@@ -2,25 +2,29 @@ name: CI
 
 on:
   push:
-    branches: [develop, main]
+    branches: [ main, develop ]
   pull_request:
-    branches: [develop, main]
+    branches: [ main, develop ]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm install
+
+      - name: Security Audit (npm)
+        run: npm run audit
 
       - name: Run ESLint
         run: npm run lint
@@ -28,13 +32,16 @@ jobs:
       - name: Run unit tests (Vitest)
         run: npm test
 
-      - name: Install Playwright browser
+      - name: Install Playwright Browser
         run: npx playwright install --with-deps chromium
 
       - name: Start HTTP server for E2E tests
-        run: npx http-server . -p 5500 &
-      
-      - name: Run E2E tests
-        env:
-          BASE_URL: http://127.0.0.1:5500/index.html
+        run: |
+          npx http-server . -p 5500 > /dev/null 2>&1 &
+          sleep 5
+
+      - name: Run E2E tests (Playwright script)
         run: npm run test:e2e
+
+
+        
