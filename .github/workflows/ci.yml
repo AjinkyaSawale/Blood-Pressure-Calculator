@@ -35,7 +35,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      # 🔐 Security Audit Step (NEW)
+      #  Security Audit Step 
       - name: Security Audit
         run: npm run audit
 
@@ -44,5 +44,13 @@ jobs:
           npx http-server . -p 5500 &
           sleep 5
           npm run test:e2e
+
+      - name: Run performance tests
+        run: |
+          npx http-server . -p 8080 -c-1 &
+          SERVER_PID=$!
+          npm run test:perf
+          kill $SERVER_PID || true
+
 
 

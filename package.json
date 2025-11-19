@@ -5,13 +5,13 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-  "test": "vitest run --environment jsdom --coverage --exclude e2e",
-  "lint": "eslint .",
-  "test:e2e": "node e2e/bp.e2e.mjs",
-  "audit": "npm audit --audit-level=high",
-  "test:bdd":"cucumber-js"
-}
-,
+    "test": "vitest run --environment jsdom --coverage --exclude e2e",
+    "lint": "eslint .",
+    "test:e2e": "node e2e/bp.e2e.mjs",
+    "audit": "npm audit --audit-level=high",
+    "test:bdd": "cucumber-js",
+    "test:perf": "node perf/bp.perf.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AjinkyaSawale/Blood-Pressure-Calculator.git"
@@ -27,6 +27,7 @@
     "@cucumber/cucumber": "^12.2.0",
     "@eslint/js": "^9.39.1",
     "@vitest/coverage-v8": "^4.0.9",
+    "autocannon": "^8.0.0",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
     "http-server": "^14.1.1",
