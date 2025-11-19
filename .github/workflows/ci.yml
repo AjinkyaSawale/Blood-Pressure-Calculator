@@ -42,3 +42,7 @@ jobs:
           npx http-server . -p 5500 &
           sleep 5
           npm run test:e2e
+
+      - name: Security Audit
+        run: npm run audit
+
