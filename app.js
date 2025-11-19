@@ -29,7 +29,7 @@ export function classifyBp(systolic, diastolic) {
     return BpCategory.High;
   }
 
-  // Elevated (was PreHigh)
+  // Elevated (formerly PreHigh)
   if (s >= 120 || d >= 80) {
     return BpCategory.Elevated;
   }
@@ -55,6 +55,14 @@ export function computePulsePressure(systolic, diastolic) {
   };
 }
 
+// ---- New feature: Mean Arterial Pressure (MAP) ----
+export function calculateMAP(s, d) {
+  if (typeof s !== "number" || typeof d !== "number") {
+    throw new Error("Invalid MAP input.");
+  }
+  return Math.round((s + 2 * d) / 3);
+}
+
 // ---- UI wiring (browser only) ----
 if (typeof document !== "undefined") {
   const form = document.getElementById("bp-form");
@@ -72,10 +80,13 @@ if (typeof document !== "undefined") {
       try {
         const category = classifyBp(s, d);
         const pulse = computePulsePressure(s, d);
+        const map = calculateMAP(s, d);
 
-        resultEl.textContent =
-          `Category: ${category} | Pulse pressure: ${pulse.value} mmHg` +
-          (pulse.isWide ? " (Wide)" : "");
+        resultEl.innerHTML = `
+          <p><strong>Category:</strong> ${category}</p>
+          <p><strong>Pulse Pressure:</strong> ${pulse.value} mmHg ${pulse.isWide ? "(Wide)" : ""}</p>
+          <p><strong>MAP:</strong> ${map} mmHg</p>
+        `;
       } catch (err) {
         const message =
           err instanceof Error
@@ -86,5 +97,6 @@ if (typeof document !== "undefined") {
     });
   }
 }
+
 
 
