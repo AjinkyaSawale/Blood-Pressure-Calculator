@@ -32,13 +32,13 @@ jobs:
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
+      # Install Playwright browsers (needed for Chromium in CI)
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
+      # Start a simple HTTP server and run E2E tests against it
       - name: Run E2E tests
-        run: npm run test:e2e
-
-
-
-
-        
+        run: |
+          npx http-server . -p 5500 &
+          sleep 5
+          npm run test:e2e
