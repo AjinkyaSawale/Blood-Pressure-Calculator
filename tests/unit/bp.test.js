@@ -9,7 +9,7 @@ describe("Blood pressure classification", () => {
   it("classifies other categories correctly", () => {
     expect(classifyBp(85, 55)).toBe(BpCategory.Low);
     expect(classifyBp(115, 75)).toBe(BpCategory.Ideal);
-    expect(classifyBp(125, 82)).toBe(BpCategory.Elevated); // UPDATED
+    expect(classifyBp(125, 82)).toBe(BpCategory.Elevated);
   });
 
   it("throws on invalid inputs", () => {
@@ -20,11 +20,17 @@ describe("Blood pressure classification", () => {
   it("classifies boundary values correctly", () => {
     expect(classifyBp(90, 60)).toBe(BpCategory.Ideal);
     expect(classifyBp(119, 79)).toBe(BpCategory.Ideal);
-    expect(classifyBp(120, 80)).toBe(BpCategory.Elevated); // UPDATED
+    expect(classifyBp(120, 80)).toBe(BpCategory.Elevated);
   });
+
   it("classifies low blood pressure correctly", () => {
-  expect(classifyBp(85, 55)).toBe(BpCategory.Low);
-});
+    expect(classifyBp(85, 55)).toBe(BpCategory.Low);
+  });
+
+  // ⭐ NEW TEST: Upper boundary before High BP
+  it("treats 139/89 as Elevated (upper boundary before High)", () => {
+    expect(classifyBp(139, 89)).toBe(BpCategory.Elevated);
+  });
 });
 
 describe("Pulse pressure feature", () => {
@@ -44,3 +50,4 @@ describe("Pulse pressure feature", () => {
     expect(pp59.isWide).toBe(false);
   });
 });
+
