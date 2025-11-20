@@ -16,4 +16,10 @@ Scenario: Calculate Mean Arterial Pressure (MAP)
   And I click calculate
   Then I should see "Category: Elevated"
 
+Scenario: Low blood pressure result
+  Given I open the blood pressure calculator
+  When I enter systolic "85" and diastolic "55"
+  And I click calculate
+  Then I should see "Category: Low"
+
 
