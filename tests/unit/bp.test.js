@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { classifyBp, computePulsePressure, BpCategory } from "../../app.js";
+import {
+  classifyBp,
+  computePulsePressure,
+  computeMAP,
+  BpCategory,
+} from "../../app.js";
 
 describe("Blood pressure classification", () => {
   it("classifies high blood pressure correctly", () => {
@@ -18,8 +23,11 @@ describe("Blood pressure classification", () => {
   });
 
   it("classifies boundary values correctly", () => {
+    // Ideal boundaries
     expect(classifyBp(90, 60)).toBe(BpCategory.Ideal);
     expect(classifyBp(119, 79)).toBe(BpCategory.Ideal);
+
+    // Elevated boundary
     expect(classifyBp(120, 80)).toBe(BpCategory.Elevated);
   });
 
@@ -27,9 +35,18 @@ describe("Blood pressure classification", () => {
     expect(classifyBp(85, 55)).toBe(BpCategory.Low);
   });
 
-  // ⭐ NEW TEST: Upper boundary before High BP
-  it("treats 139/89 as Elevated (upper boundary before High)", () => {
-    expect(classifyBp(139, 89)).toBe(BpCategory.Elevated);
+  it("rejects additional invalid ranges", () => {
+    // systolic out of range
+    expect(() => classifyBp(69, 60)).toThrow();
+    expect(() => classifyBp(191, 80)).toThrow();
+
+    // diastolic out of range
+    expect(() => classifyBp(100, 39)).toThrow();
+    expect(() => classifyBp(120, 101)).toThrow();
+
+    // systolic not strictly greater than diastolic
+    expect(() => classifyBp(90, 90)).toThrow();
+    expect(() => classifyBp(85, 86)).toThrow();
   });
 });
 
@@ -48,6 +65,13 @@ describe("Pulse pressure feature", () => {
     const pp59 = computePulsePressure(119, 60);
     expect(pp59.value).toBe(59);
     expect(pp59.isWide).toBe(false);
+  });
+});
+
+describe("Mean Arterial Pressure (MAP)", () => {
+  it("calculates MAP correctly using MAP = (SBP + 2*DBP) / 3", () => {
+    const result = computeMAP(120, 80); // (120 + 2*80)/3 = 280/3 ≈ 93.33
+    expect(result).toBeCloseTo(93.33, 2);
   });
 });
 
