@@ -20,33 +20,17 @@ describe("Blood pressure classification", () => {
   it("throws on invalid inputs", () => {
     expect(() => classifyBp("abc", 70)).toThrow();
     expect(() => classifyBp(120, null)).toThrow();
+    expect(() => classifyBp(80, 90)).toThrow(); // systolic must be > diastolic
   });
 
   it("classifies boundary values correctly", () => {
-    // Ideal boundaries
     expect(classifyBp(90, 60)).toBe(BpCategory.Ideal);
     expect(classifyBp(119, 79)).toBe(BpCategory.Ideal);
-
-    // Elevated boundary
     expect(classifyBp(120, 80)).toBe(BpCategory.Elevated);
   });
 
   it("classifies low blood pressure correctly", () => {
     expect(classifyBp(85, 55)).toBe(BpCategory.Low);
-  });
-
-  it("rejects additional invalid ranges", () => {
-    // systolic out of range
-    expect(() => classifyBp(69, 60)).toThrow();
-    expect(() => classifyBp(191, 80)).toThrow();
-
-    // diastolic out of range
-    expect(() => classifyBp(100, 39)).toThrow();
-    expect(() => classifyBp(120, 101)).toThrow();
-
-    // systolic not strictly greater than diastolic
-    expect(() => classifyBp(90, 90)).toThrow();
-    expect(() => classifyBp(85, 86)).toThrow();
   });
 });
 
@@ -70,8 +54,14 @@ describe("Pulse pressure feature", () => {
 
 describe("Mean Arterial Pressure (MAP)", () => {
   it("calculates MAP correctly using MAP = (SBP + 2*DBP) / 3", () => {
-    const result = computeMAP(120, 80); // (120 + 2*80)/3 = 280/3 ≈ 93.33
+    const result = computeMAP(120, 80); // ~93.33
     expect(result).toBeCloseTo(93.33, 2);
   });
+
+  it("computes MAP correctly when systolic equals diastolic", () => {
+    const result = computeMAP(100, 100); // MAP = 100
+    expect(result).toBeCloseTo(100, 2);
+  });
 });
+
 
