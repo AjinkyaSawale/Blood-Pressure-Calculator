@@ -63,5 +63,3 @@ describe("Mean Arterial Pressure (MAP)", () => {
     expect(result).toBeCloseTo(100, 2);
   });
 });
-
-
