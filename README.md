@@ -1,29 +1,94 @@
-# Blood Pressure Category Calculator 
+# Blood Pressure Category Calculator
 
-A simple client-side application that calculates blood pressure on the basis of systolic and diastolic inputs. It also includes a **pulse pressure** feature and has been tested using **Vitest** enabled.
+A simple client-side application that calculates blood pressure based on systolic and diastolic inputs.  
+The calculator supports multiple clinical measurements:
 
-## Testing Strategy
+- **Blood Pressure Category**  
+  (Low, Ideal, Elevated, High – based on systolic/diastolic ranges)
+- **Pulse Pressure**  
+  Calculated as:  
+  `Pulse Pressure = Systolic − Diastolic`
+- **Mean Arterial Pressure (MAP)**  
+  A key measure of tissue perfusion, calculated using:  
+  `MAP = (SBP + 2 × DBP) / 3`
 
-This project uses three layers of automated tests:
+These features are implemented in `app.js` and validated through multiple testing layers.
 
-1. **Unit tests (Vitest)**  
-   - Location: `tests/unit/bp.test.js`  
-   - Command:  
-     ```bash
-     npm test
-     ```
-   - Purpose: Validates the BP classification logic, pulse pressure calculation, and input validation rules.
+---
 
-2. **End-to-End (E2E) tests**  
-   - Location: `e2e/bp.e2e.mjs`  
-   - The tests start a lightweight HTTP server, open the real browser page, enter values, and assert the UI result.  
-   - Command:  
-     ```bash
-     npm run test:e2e
-     ```
+## 🧪 Testing Strategy
 
-3. **BDD layer (Behaviour-Driven Development)**  
-   - Feature files: `bdd/features/bp.feature`  
-   - Step definitions: `bdd/steps/bp.steps.js`  
-   - These scenarios describe the blood pressure calculator from a user point of view (e.g. *“Given I enter 140/90, then I see Elevated blood pressure”*).  
-   - The BDD files are also stored in Git to demonstrate how feature-level scenarios can be linked to the CI/CD pipeline and CA report, even if they are run less frequently than unit/E2E tests.
+This project uses **three major testing layers** to ensure correctness, behaviour, and user-level accuracy.
+
+---
+
+### **1. Unit Tests (Vitest)**
+
+Location: `tests/unit/bp.test.js`  
+
+Run:
+
+```bash
+npm test
+Unit tests verify:
+BP category classification
+Pulse pressure calculation
+MAP calculation
+Boundary conditions
+Error handling & invalid inputs
+Vitest coverage is also enabled in the pipeline.
+2. End-to-End (E2E) Tests
+Location: e2e/bp.e2e.mjs
+The E2E test:
+
+Spins up a small local HTTP server
+Opens the real UI in a Chromium browser
+Enters systolic/diastolic values
+Verifies the displayed category and calculations
+Run:
+npm run test:e2e
+This confirms that the actual UI behaves correctly, not just the logic.
+3. Behaviour-Driven Development (BDD)
+Feature files: bdd/features/bp.feature
+Step definitions: bdd/steps/bp.steps.js
+BDD describes behaviour in user language, e.g.:
+
+“Given I enter 140 and 90, then I should see High blood pressure.”
+Run:
+npm run test:bdd
+BDD sits above unit tests and gives a business-level validation layer.
+CI/CD Pipeline (GitHub Actions)
+A full CI pipeline is configured in:
+.github/workflows/ci.yml
+It runs automatically on every push to main or develop.
+
+The pipeline performs:
+
+Install dependencies
+npm ci
+Static code analysis (ESLint)
+npm run lint
+Unit tests + coverage
+npm test
+BDD tests (Cucumber.js)
+npm run test:bdd
+E2E tests
+npm run test:e2e
+Security audit (High severity+)
+npm run audit
+Performance test step
+Uses Autocannon to run a quick load test against the running HTTP server.
+This ensures that code quality, behaviour, security, and performance are validated before merging improvements.
+How to Run Locally
+Install dependencies:
+npm install
+Run linter:
+npm run lint
+Run unit tests:
+npm test
+Run BDD scenarios:
+npm run test:bdd
+Run E2E tests:
+npm run test:e2e
+Start the local HTTP server manually:
+npx http-server .
