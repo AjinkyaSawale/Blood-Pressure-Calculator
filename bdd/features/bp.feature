@@ -22,4 +22,11 @@ Scenario: Low blood pressure result
   And I click calculate
   Then I should see "Category: Low"
 
+  Scenario: See MAP value for a normal reading
+  Given I open the blood pressure calculator
+  When I enter systolic 120 and diastolic 80
+  And I press Calculate
+  Then I should see "MAP"
+
+
 
