@@ -62,7 +62,7 @@ export function computeMAP(systolic, diastolic) {
   const d = Number(diastolic);
 
   if (Number.isNaN(s) || Number.isNaN(d)) {
-    throw new RangeError("Invalid blood pressure input for MAP.");
+    throw new RangeError("Invalid blood pressure input.");
   }
 
   return (s + 2 * d) / 3;
@@ -89,19 +89,18 @@ if (typeof document !== "undefined") {
 
         resultEl.textContent =
           `Category: ${category} | ` +
-          `Pulse pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""} | ` +
-          `MAP: ${map.toFixed(1)} mmHg`;
+          `Pulse pressure: ${pulse.value} mmHg` +
+          (pulse.isWide ? " (Wide)" : "") +
+          ` | MAP: ${map.toFixed(1)} mmHg`;
       } catch (err) {
         const message =
           err instanceof Error
             ? err.message
             : "Invalid blood pressure input.";
         resultEl.textContent = message;
+        console.error(err);
       }
     });
   }
 }
-
-
-
 
