@@ -62,4 +62,11 @@ describe("Mean Arterial Pressure (MAP)", () => {
     const result = computeMAP(100, 100); // MAP = 100
     expect(result).toBeCloseTo(100, 2);
   });
+    it("handles different MAP ranges (higher pressure gives higher MAP)", () => {
+    const mapNormal = computeMAP(120, 80);  // ~93.33
+    const mapHigh   = computeMAP(160, 100); // ~120
+
+    expect(mapHigh).toBeGreaterThan(mapNormal);
+  });
+
 });
