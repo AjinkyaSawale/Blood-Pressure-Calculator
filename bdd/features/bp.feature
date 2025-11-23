@@ -28,5 +28,12 @@ Scenario: Low blood pressure result
   And I press Calculate
   Then I should see "MAP"
 
+  Scenario: Low blood pressure classification
+  Given I open the blood pressure calculator
+  When I enter systolic "85" and diastolic "55"
+  And I click calculate
+  Then I should see "Low"
+
+
 
 
