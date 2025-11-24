@@ -39,7 +39,7 @@ jobs:
       - name: Run security audit
         run: npm run audit
 
-      # E2E is heavier, so only run it once on Node 20
+      # E2E is heavier → run only once on Node 20
       - name: Install Playwright browsers (for E2E)
         if: matrix.node-version == '20'
         run: npx playwright install --with-deps
