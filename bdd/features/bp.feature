@@ -34,6 +34,14 @@ Scenario: Low blood pressure result
   And I click calculate
   Then I should see "Low"
 
+  Scenario: Detecting wide pulse pressure
+  Given I open the blood pressure calculator
+  When I enter systolic "150" and diastolic "70"
+  And I press calculate
+  Then I should see "Pulse pressure: 80"
+  And I should see "(Wide)"
+
+
 
 
 
