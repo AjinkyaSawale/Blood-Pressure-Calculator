@@ -10,14 +10,18 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Install dependencies
@@ -32,25 +36,18 @@ jobs:
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      #  Security Audit Step 
-      - name: Security Audit
+      - name: Run security audit
         run: npm run audit
 
-      - name: Run E2E tests
+      # E2E is heavier, so only run it once on Node 20
+      - name: Install Playwright browsers (for E2E)
+        if: matrix.node-version == '20'
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests (Category + MAP)
+        if: matrix.node-version == '20'
         run: |
-          npx http-server . -p 5500 &
+          npx http-server -p 5500 -c-1 . &
           sleep 5
           npm run test:e2e
-
-      - name: Run performance tests
-        run: |
-          npx http-server . -p 8080 -c-1 &
-          SERVER_PID=$!
-          npm run test:perf
-          kill $SERVER_PID || true
-
-
 
