@@ -61,7 +61,6 @@ export function computeMAP(systolic, diastolic) {
   const s = Number(systolic);
   const d = Number(diastolic);
 
-  // Reuse the same validation rules as classifyBp
   if (
     Number.isNaN(s) ||
     Number.isNaN(d) ||
@@ -69,7 +68,7 @@ export function computeMAP(systolic, diastolic) {
     s > 190 ||
     d < 40 ||
     d > 100 ||
-    s <= d // systolic must be strictly greater than diastolic
+    s <= d
   ) {
     throw new RangeError("Invalid blood pressure input.");
   }
@@ -96,11 +95,11 @@ if (typeof document !== "undefined") {
         const pulse = computePulsePressure(s, d);
         const map = computeMAP(s, d);
 
+        // Multi-line, but MAP formatted with ONE decimal place
         resultEl.textContent =
-          `Category: ${category} | ` +
-          `Pulse pressure: ${pulse.value} mmHg` +
-          (pulse.isWide ? " (Wide)" : "") +
-          ` | MAP: ${map.toFixed(1)} mmHg`;
+          `Category: ${category}\n` +
+          `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
+          `MAP: ${map.toFixed(1)} mmHg`;
       } catch (err) {
         const message =
           err instanceof Error
