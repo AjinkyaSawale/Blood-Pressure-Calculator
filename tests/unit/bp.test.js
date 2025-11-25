@@ -57,7 +57,7 @@ describe("Mean Arterial Pressure (MAP)", () => {
     expect(result).toBeCloseTo(93.33, 2);
   });
 
-  // ⭐ NEW small test: invalid input handling
+  //  NEW small test: invalid input handling
   it("throws an error for invalid MAP inputs", () => {
     expect(() => computeMAP("abc", 80)).toThrow();
     expect(() => computeMAP(120, undefined)).toThrow();
