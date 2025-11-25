@@ -41,6 +41,12 @@ Scenario: Low blood pressure result
   Then I should see "Pulse pressure: 80"
   And I should see "(Wide)"
 
+  Scenario: Invalid reading shows an error message
+  Given I am on the blood pressure calculator page
+  When I enter systolic "120" and diastolic "120" and press calculate
+  Then I should see "Invalid blood pressure input."
+
+
 
 
 
