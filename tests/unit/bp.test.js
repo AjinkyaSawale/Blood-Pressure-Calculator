@@ -57,10 +57,14 @@ describe("Mean Arterial Pressure (MAP)", () => {
     expect(result).toBeCloseTo(93.33, 2);
   });
 
-  //  NEW small test: invalid input handling
+  // NEW small test: invalid input handling
   it("throws an error for invalid MAP inputs", () => {
     expect(() => computeMAP("abc", 80)).toThrow();
     expect(() => computeMAP(120, undefined)).toThrow();
     expect(() => computeMAP(70, 75)).toThrow(); // SBP must be > DBP
   });
+  it("rounds MAP correctly to two decimals", () => {
+  const result = computeMAP(123, 78); // (123 + 156) / 3 = 279/3 = 93 exactly
+  expect(result).toBeCloseTo(93.0, 2);
+});
 });
