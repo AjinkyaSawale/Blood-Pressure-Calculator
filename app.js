@@ -43,7 +43,7 @@ export function classifyBp(systolic, diastolic) {
   return BpCategory.Low;
 }
 
-// ---- New feature: pulse pressure calculation ----
+// ---- Pulse pressure calculation ----
 export function computePulsePressure(systolic, diastolic) {
   const s = Number(systolic);
   const d = Number(diastolic);
@@ -55,12 +55,13 @@ export function computePulsePressure(systolic, diastolic) {
   };
 }
 
-// ---- New feature: Mean Arterial Pressure (MAP) ----
+// ---- Mean Arterial Pressure (MAP) ----
 // Formula: MAP = (SBP + 2 * DBP) / 3
 export function computeMAP(systolic, diastolic) {
   const s = Number(systolic);
   const d = Number(diastolic);
 
+  // strict validation to match unit tests
   if (
     Number.isNaN(s) ||
     Number.isNaN(d) ||
@@ -95,7 +96,7 @@ if (typeof document !== "undefined") {
         const pulse = computePulsePressure(s, d);
         const map = computeMAP(s, d);
 
-        // Multi-line, but MAP formatted with ONE decimal place
+        // Multi-line result, MAP formatted to ONE decimal place
         resultEl.textContent =
           `Category: ${category}\n` +
           `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
