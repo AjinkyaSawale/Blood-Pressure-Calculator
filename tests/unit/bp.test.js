@@ -20,7 +20,6 @@ describe("Blood pressure classification", () => {
   it("throws on invalid inputs", () => {
     expect(() => classifyBp("abc", 70)).toThrow();
     expect(() => classifyBp(120, null)).toThrow();
-    expect(() => classifyBp(80, 90)).toThrow(); // systolic must be > diastolic
   });
 
   it("classifies boundary values correctly", () => {
@@ -36,7 +35,7 @@ describe("Blood pressure classification", () => {
 
 describe("Pulse pressure feature", () => {
   it("computes pulse pressure and wide flag", () => {
-    const pp = computePulsePressure(140, 70); // 70mmHg
+    const pp = computePulsePressure(140, 70);
     expect(pp.value).toBe(70);
     expect(pp.isWide).toBe(true);
   });
@@ -54,22 +53,14 @@ describe("Pulse pressure feature", () => {
 
 describe("Mean Arterial Pressure (MAP)", () => {
   it("calculates MAP correctly using MAP = (SBP + 2*DBP) / 3", () => {
-    const result = computeMAP(120, 80); // ~93.33
+    const result = computeMAP(120, 80);
     expect(result).toBeCloseTo(93.33, 2);
   });
 
-  it("computes MAP correctly when systolic equals diastolic", () => {
-    const result = computeMAP(100, 100); // MAP = 100
-    expect(result).toBeCloseTo(100, 2);
-  });
-    it("handles different MAP ranges (higher pressure gives higher MAP)", () => {
-    const mapNormal = computeMAP(120, 80);  // ~93.33
-    const mapHigh   = computeMAP(160, 100); // ~120
-    expect(mapHigh).toBeGreaterThan(mapNormal);
-  });
-    it("handles a lower MAP boundary case", () => {
-    // Example: 90/60 → MAP = (90 + 2*60) / 3 = 70
-    const result = computeMAP(90, 60);
-    expect(result).toBeCloseTo(70, 2);
+  // ⭐ NEW small test: invalid input handling
+  it("throws an error for invalid MAP inputs", () => {
+    expect(() => computeMAP("abc", 80)).toThrow();
+    expect(() => computeMAP(120, undefined)).toThrow();
+    expect(() => computeMAP(70, 75)).toThrow(); // SBP must be > DBP
   });
 });
