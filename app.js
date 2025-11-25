@@ -61,7 +61,16 @@ export function computeMAP(systolic, diastolic) {
   const s = Number(systolic);
   const d = Number(diastolic);
 
-  if (Number.isNaN(s) || Number.isNaN(d)) {
+  // Reuse the same validation rules as classifyBp
+  if (
+    Number.isNaN(s) ||
+    Number.isNaN(d) ||
+    s < 70 ||
+    s > 190 ||
+    d < 40 ||
+    d > 100 ||
+    s <= d // systolic must be strictly greater than diastolic
+  ) {
     throw new RangeError("Invalid blood pressure input.");
   }
 
@@ -103,4 +112,3 @@ if (typeof document !== "undefined") {
     });
   }
 }
-
