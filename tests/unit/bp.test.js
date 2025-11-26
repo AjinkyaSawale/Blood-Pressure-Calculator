@@ -31,6 +31,17 @@ describe("Blood pressure classification", () => {
   it("classifies low blood pressure correctly", () => {
     expect(classifyBp(85, 55)).toBe(BpCategory.Low);
   });
+
+    it("treats 140/90 inclusive thresholds as high blood pressure", () => {
+    // systolic exactly at 140 should be High
+    expect(classifyBp(140, 80)).toBe(BpCategory.High);
+
+    // diastolic exactly at 90 should be High
+    expect(classifyBp(130, 90)).toBe(BpCategory.High);
+
+    // both at the inclusive high thresholds
+    expect(classifyBp(140, 90)).toBe(BpCategory.High);
+  });
 });
 
 describe("Pulse pressure feature", () => {
@@ -64,7 +75,7 @@ describe("Mean Arterial Pressure (MAP)", () => {
     expect(() => computeMAP(70, 75)).toThrow(); // SBP must be > DBP
   });
   it("rounds MAP correctly to two decimals", () => {
-  const result = computeMAP(123, 78); // (123 + 156) / 3 = 279/3 = 93 exactly
+  const result = computeMAP(123, 78); // (123 + 156) / 3 = 279/3 = 93 
   expect(result).toBeCloseTo(93.0, 2);
 });
 });
