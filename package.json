@@ -11,7 +11,9 @@
     "audit": "npm audit --audit-level=high",
     "test:bdd": "cucumber-js",
     "test:perf": "node perf/bp.perf.mjs",
-    "test:e2e:error": "node e2e/error.e2e.mjs"
+    "test:e2e:error": "node e2e/error.e2e.mjs",
+    "test:e2e:low": "node e2e/bp-low.e2e.mjs"
+
   },
   "repository": {
     "type": "git",
