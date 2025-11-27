@@ -21,8 +21,12 @@
           min="70"
           max="190"
           required
-          aria-label="Systolic input"
         />
+        <small
+          id="sys-error"
+          class="error"
+          aria-live="polite"
+        ></small>
       </div>
 
       <div class="field">
@@ -34,11 +38,15 @@
           min="40"
           max="100"
           required
-          aria-label="Diastolic input"
         />
+        <small
+          id="dia-error"
+          class="error"
+          aria-live="polite"
+        ></small>
       </div>
 
-      <button type="submit">Calculate</button>
+      <button type="submit" disabled>Calculate</button>
     </form>
 
     <section id="result" aria-live="polite"></section>

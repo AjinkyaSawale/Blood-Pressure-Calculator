@@ -5,36 +5,55 @@ async function run() {
   const page = await browser.newPage();
 
   try {
-    // Visit the app
+    // Open the app
     await page.goto("http://127.0.0.1:5500/index.html");
 
-    // Fill valid MAP-checking values
+    // --- Scenario 1: Valid Elevated BP + MAP formatting ---
     await page.fill("#sys", "120");
     await page.fill("#dia", "80");
-
-    // Submit
     await page.click("button[type=submit]");
     await page.waitForTimeout(200);
 
-    const result = await page.$eval("#result", el => el.innerText);
+    const resultText = await page.textContent("#result");
 
-    // --- Existing checks ---
-    if (!result.includes("Category")) {
-      throw new Error("Category missing in UI.");
-    }
-    if (!result.includes("MAP")) {
-      throw new Error("MAP value missing in UI.");
-    }
-
-    // --- NEW TEST: MAP formatting (one decimal, mmHg present) ---
-    const mapRegex = /MAP:\s*\d{2,3}\.\d\s*mmHg/;  
-    if (!mapRegex.test(result)) {
+    if (!resultText.includes("Category: Elevated")) {
       throw new Error(
-        `MAP formatting incorrect. Got: "${result}" but expected like "MAP: 93.3 mmHg".`
+        `Expected Elevated category, got: "${resultText}"`
       );
     }
 
-    console.log("E2E tests passed: Category + MAP + MAP formatting");
+    if (!resultText.includes("Pulse Pressure: 40 mmHg")) {
+      throw new Error(
+        `Expected pulse pressure 40 mmHg, got: "${resultText}"`
+      );
+    }
+
+    if (!resultText.includes("MAP: 93.3 mmHg")) {
+      throw new Error(
+        `MAP formatting incorrect. Got: "${resultText}" but expected like "MAP: 93.3 mmHg".`
+      );
+    }
+
+    // --- Scenario 2: Inline error for invalid systolic ---
+    // Below minimum (70) – should trigger validation error on Systolic.
+    await page.fill("#sys", "50");
+    await page.fill("#dia", "80");
+    await page.waitForTimeout(150);
+
+    const sysErrorText = await page.textContent("#sys-error");
+
+    if (
+      !sysErrorText ||
+      !sysErrorText.toLowerCase().includes("between 70 and 190")
+    ) {
+      throw new Error(
+        `Expected systolic validation error, got: "${sysErrorText}"`
+      );
+    }
+
+    console.log(
+      "E2E tests passed: Category + MAP formatting + inline systolic validation"
+    );
   } catch (err) {
     console.error("E2E tests failed");
     console.error(err);
