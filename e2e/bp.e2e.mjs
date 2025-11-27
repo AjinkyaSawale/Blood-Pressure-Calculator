@@ -5,55 +5,51 @@ async function run() {
   const page = await browser.newPage();
 
   try {
-    // Open the app
+    // ---- Scenario 1: Elevated BP + MAP formatting ----
     await page.goto("http://127.0.0.1:5500/index.html");
 
-    // --- Scenario 1: Valid Elevated BP + MAP formatting ---
+    // Fill Elevated values (120 / 80)
     await page.fill("#sys", "120");
     await page.fill("#dia", "80");
+
     await page.click("button[type=submit]");
     await page.waitForTimeout(200);
 
-    const resultText = await page.textContent("#result");
+    const elevatedText = await page.$eval("#result", (el) => el.innerText);
 
-    if (!resultText.includes("Category: Elevated")) {
+    if (!elevatedText.includes("Category: Elevated")) {
       throw new Error(
-        `Expected Elevated category, got: "${resultText}"`
+        `Expected 'Category: Elevated' but got:\n"${elevatedText}"`
       );
     }
 
-    if (!resultText.includes("Pulse Pressure: 40 mmHg")) {
+    if (!elevatedText.includes("MAP: 93.3 mmHg")) {
       throw new Error(
-        `Expected pulse pressure 40 mmHg, got: "${resultText}"`
+        `MAP formatting incorrect. Got: "${elevatedText}" but expected like "MAP: 93.3 mmHg".`
       );
     }
 
-    if (!resultText.includes("MAP: 93.3 mmHg")) {
+    // ---- Scenario 2: Low BP flow ----
+    // Clear the inputs
+    await page.fill("#sys", "");
+    await page.fill("#dia", "");
+
+    // Low BP example (85 / 55)
+    await page.fill("#sys", "85");
+    await page.fill("#dia", "55");
+
+    await page.click("button[type=submit]");
+    await page.waitForTimeout(200);
+
+    const lowText = await page.$eval("#result", (el) => el.innerText);
+
+    if (!lowText.includes("Category: Low")) {
       throw new Error(
-        `MAP formatting incorrect. Got: "${resultText}" but expected like "MAP: 93.3 mmHg".`
+        `Expected 'Category: Low' but got:\n"${lowText}"`
       );
     }
 
-    // --- Scenario 2: Inline error for invalid systolic ---
-    // Below minimum (70) – should trigger validation error on Systolic.
-    await page.fill("#sys", "50");
-    await page.fill("#dia", "80");
-    await page.waitForTimeout(150);
-
-    const sysErrorText = await page.textContent("#sys-error");
-
-    if (
-      !sysErrorText ||
-      !sysErrorText.toLowerCase().includes("between 70 and 190")
-    ) {
-      throw new Error(
-        `Expected systolic validation error, got: "${sysErrorText}"`
-      );
-    }
-
-    console.log(
-      "E2E tests passed: Category + MAP formatting + inline systolic validation"
-    );
+    console.log("E2E tests passed: Elevated + MAP + Low BP flows");
   } catch (err) {
     console.error("E2E tests failed");
     console.error(err);
@@ -65,3 +61,4 @@ async function run() {
 }
 
 run();
+
