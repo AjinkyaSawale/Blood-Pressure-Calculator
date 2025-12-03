@@ -53,4 +53,19 @@ describe("UI DOM behaviour", () => {
     expect(result.textContent).toContain("Category: Elevated");
     expect(result.textContent).toContain("MAP: 93.3");
   });
+  it("shows error for invalid systolic input", () => {
+  const sys = document.getElementById("sys");
+  const dia = document.getElementById("dia");
+  const form = document.getElementById("bp-form");
+  const result = document.getElementById("result");
+
+  // Invalid systolic (below 70)
+  sys.value = "50";
+  dia.value = "70";
+
+  form.dispatchEvent(new dom.window.Event("submit"));
+
+  expect(result.textContent).toContain("Invalid");
+});
+
 });
