@@ -1,133 +1,78 @@
-
+// ui.js
 import { classifyBp, computePulsePressure, computeMAP } from "./app.js";
 
-const form = document.getElementById("bp-form");
-const sysInput = document.getElementById("sys");
-const diaInput = document.getElementById("dia");
-const resultEl = document.getElementById("result");
-const sysError = document.getElementById("sys-error");
-const diaError = document.getElementById("dia-error");
-const submitButton = form?.querySelector("button[type='submit']");
+// Allow injecting a custom document (for tests)
+// but default to the browser's document.
+export function initUI(doc = document) {
+  const form = doc.getElementById("bp-form");
+  if (!form) return; // Safety guard for tests with partial DOM
 
-/**
- * Validate a numeric field in the given range.
- */
-function validateNumberField(inputEl, errorEl, min, max, label) {
-  if (!inputEl || !errorEl) return false;
+  const sys = doc.getElementById("sys");
+  const dia = doc.getElementById("dia");
+  const sysError = doc.getElementById("sys-error");
+  const diaError = doc.getElementById("dia-error");
+  const button = form.querySelector("button[type=submit]");
+  const result = doc.getElementById("result");
 
-  const raw = inputEl.value.trim();
-  if (!raw) {
-    // No value yet – clear error, but treat as not valid for enabling button
-    errorEl.textContent = "";
-    return false;
-  }
+  const validate = () => {
+    const s = Number(sys.value);
+    const d = Number(dia.value);
 
-  const value = Number(raw);
-  if (Number.isNaN(value)) {
-    errorEl.textContent = `${label} must be a number.`;
-    return false;
-  }
+    let hasError = false;
 
-  if (value < min || value > max) {
-    errorEl.textContent = `${label} must be between ${min} and ${max}.`;
-    return false;
-  }
-
-  errorEl.textContent = "";
-  return true;
-}
-
-/**
- * Extra rule: systolic must be strictly higher than diastolic.
- */
-function validateRelation() {
-  if (!sysInput || !diaInput || !diaError) return false;
-
-  const s = Number(sysInput.value);
-  const d = Number(diaInput.value);
-
-  if (!sysInput.value || !diaInput.value) {
-    // Don’t show relation error until both have values
-    if (diaError.textContent === "Systolic must be higher than diastolic.") {
-      diaError.textContent = "";
-    }
-    return false;
-  }
-
-  if (s <= d) {
-    diaError.textContent = "Systolic must be higher than diastolic.";
-    return false;
-  }
-
-  // Clear only our specific relation error
-  if (diaError.textContent === "Systolic must be higher than diastolic.") {
+    // reset errors every time
+    sysError.textContent = "";
     diaError.textContent = "";
-  }
-  return true;
-}
 
-/**
- * Validate everything and toggle the button.
- */
-function validateFormAndToggleButton() {
-  if (!submitButton) return;
+    if (!sys.value || Number.isNaN(s) || s < 70 || s > 190) {
+      sysError.textContent = "Systolic must be between 70 and 190.";
+      hasError = true;
+    }
 
-  const sysOk = validateNumberField(sysInput, sysError, 70, 190, "Systolic");
-  const diaOk = validateNumberField(diaInput, diaError, 40, 100, "Diastolic");
+    if (!dia.value || Number.isNaN(d) || d < 40 || d > 100) {
+      diaError.textContent = "Diastolic must be between 40 and 100.";
+      hasError = true;
+    }
 
-  // Relation only makes sense if both fields are individually valid
-  const relationOk = sysOk && diaOk ? validateRelation() : false;
+    button.disabled = hasError;
+    return !hasError;
+  };
 
-  const allValid = sysOk && diaOk && relationOk;
-  submitButton.disabled = !allValid;
+  // Live validation
+  sys.addEventListener("input", validate);
+  dia.addEventListener("input", validate);
 
-  return allValid;
-}
-
-// Wire up live validation
-if (sysInput) {
-  sysInput.addEventListener("input", () => {
-    validateFormAndToggleButton();
-  });
-}
-
-if (diaInput) {
-  diaInput.addEventListener("input", () => {
-    validateFormAndToggleButton();
-  });
-}
-
-// Submit handler – uses existing core logic and expected output format
-if (form && resultEl) {
+  // Submit: only if valid
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (!validate()) return;
 
-    // If something became invalid just before submit, don't proceed
-    if (!validateFormAndToggleButton()) {
-      return;
-    }
-
-    const s = Number(sysInput.value);
-    const d = Number(diaInput.value);
+    const s = Number(sys.value);
+    const d = Number(dia.value);
 
     try {
       const category = classifyBp(s, d);
       const pulse = computePulsePressure(s, d);
       const map = computeMAP(s, d);
 
-      // MUST match the format your existing E2E expects:
-      // Category: Elevated
-      // Pulse Pressure: 40 mmHg
-      // MAP: 93.3 mmHg
-      resultEl.textContent =
+      result.textContent =
         `Category: ${category}\n` +
         `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
         `MAP: ${map.toFixed(1)} mmHg`;
     } catch (err) {
-      const message =
+      result.textContent =
         err instanceof Error ? err.message : "Invalid blood pressure input.";
-      resultEl.textContent = message;
-      
+      // we don't re-throw here to keep UI stable
     }
   });
+
+  // initial state
+  button.disabled = true;
+  sysError.textContent = "";
+  diaError.textContent = "";
+}
+
+// Auto-wire only in a real browser (not needed for tests)
+if (typeof document !== "undefined") {
+  initUI(document);
 }
