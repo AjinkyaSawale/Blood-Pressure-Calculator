@@ -1,71 +1,104 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { classifyBp, computeMAP, computePulsePressure } from "../../app.js";
-import fs from "fs";
-import path from "path";
-import { JSDOM } from "jsdom";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
-describe("UI DOM behaviour", () => {
-  let dom;
-  let document;
-  let window;
+const htmlTemplate = `
+  <main class="card">
+    <h1>Blood Pressure Category Calculator</h1>
 
-  beforeEach(() => {
-    const html = fs.readFileSync(
-      path.resolve(__dirname, "../../index.html"),
-      "utf8"
-    );
+    <form id="bp-form">
+      <div class="field">
+        <label for="sys">Systolic (70–190 mmHg)</label>
+        <input
+          id="sys"
+          name="sys"
+          type="number"
+          min="70"
+          max="190"
+          required
+        />
+        <small
+          id="sys-error"
+          class="error"
+          aria-live="polite"
+        ></small>
+      </div>
 
-    dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable" });
-    document = dom.window.document;
-    window = dom.window;
+      <div class="field">
+        <label for="dia">Diastolic (40–100 mmHg)</label>
+        <input
+          id="dia"
+          name="dia"
+          type="number"
+          min="40"
+          max="100"
+          required
+        />
+        <small
+          id="dia-error"
+          class="error"
+          aria-live="polite"
+        ></small>
+      </div>
 
-    // Inject JS logic manually
-    window.classifyBp = classifyBp;
-    window.computeMAP = computeMAP;
-    window.computePulsePressure = computePulsePressure;
+      <button type="submit" disabled>Calculate</button>
+    </form>
 
-    // Fake result element
-    const script = document.createElement("script");
-    script.textContent = `
-      document.getElementById("bp-form").addEventListener("submit", (e) => {
-        e.preventDefault();
-        const s = Number(document.getElementById("sys").value);
-        const d = Number(document.getElementById("dia").value);
-        const cat = classifyBp(s, d);
-        const map = computeMAP(s, d).toFixed(1);
-        document.getElementById("result").textContent = "Category: " + cat + " | MAP: " + map;
-      });
-    `;
-    document.body.appendChild(script);
-  });
+    <section id="result" aria-live="polite"></section>
+  </main>
+`;
 
-  it("updates result text after user submits values", () => {
-    const sys = document.getElementById("sys");
-    const dia = document.getElementById("dia");
-    const form = document.getElementById("bp-form");
-    const result = document.getElementById("result");
+beforeEach(async () => {
+  // Reset module cache so ui.js re-attaches listeners each test
+  vi.resetModules();
 
-    sys.value = "120";
-    dia.value = "80";
+  // Reset DOM
+  document.body.innerHTML = htmlTemplate;
 
-    form.dispatchEvent(new dom.window.Event("submit"));
-
-    expect(result.textContent).toContain("Category: Elevated");
-    expect(result.textContent).toContain("MAP: 93.3");
-  });
-  it("shows error for invalid systolic input", () => {
-  const sys = document.getElementById("sys");
-  const dia = document.getElementById("dia");
-  const form = document.getElementById("bp-form");
-  const result = document.getElementById("result");
-
-  // Invalid systolic (below 70)
-  sys.value = "50";
-  dia.value = "70";
-
-  form.dispatchEvent(new dom.window.Event("submit"));
-
-  expect(result.textContent).toContain("Invalid");
+  // Load the UI wiring (this should attach event listeners)
+  await import("../../ui.js");
 });
 
+describe("UI DOM behaviour", () => {
+  it("keeps the Calculate button disabled by default", () => {
+    const button = document.querySelector('button[type="submit"]');
+    expect(button).not.toBeNull();
+    expect(button.disabled).toBe(true);
+  });
+
+  it("enables the button when both inputs are within valid range", () => {
+    const form = document.getElementById("bp-form");
+    const sysInput = document.getElementById("sys");
+    const diaInput = document.getElementById("dia");
+    const button = form.querySelector('button[type="submit"]');
+
+    sysInput.value = "120";
+    diaInput.value = "80";
+
+    // Simulate user typing
+    sysInput.dispatchEvent(new Event("input", { bubbles: true }));
+    diaInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    expect(button.disabled).toBe(false);
+  });
+
+  it("shows systolic error and keeps button disabled for invalid systolic", () => {
+    const form = document.getElementById("bp-form");
+    const sysInput = document.getElementById("sys");
+    const diaInput = document.getElementById("dia");
+    const button = form.querySelector('button[type="submit"]');
+    const sysError = document.getElementById("sys-error");
+
+    // Clearly invalid systolic
+    sysInput.value = "50";
+    diaInput.value = "80";
+
+    // Simulate the user typing
+    sysInput.dispatchEvent(new Event("input", { bubbles: true }));
+    diaInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // Some error text should be present (we don't care about exact wording)
+    expect(sysError.textContent.trim().length).toBeGreaterThan(0);
+
+    // And the button should stay disabled
+    expect(button.disabled).toBe(true);
+  });
 });
