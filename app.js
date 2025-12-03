@@ -61,7 +61,6 @@ export function computeMAP(systolic, diastolic) {
   const s = Number(systolic);
   const d = Number(diastolic);
 
-  // strict validation to match unit tests
   if (
     Number.isNaN(s) ||
     Number.isNaN(d) ||
@@ -75,40 +74,4 @@ export function computeMAP(systolic, diastolic) {
   }
 
   return (s + 2 * d) / 3;
-}
-
-// ---- UI wiring (browser only) ----
-if (typeof document !== "undefined") {
-  const form = document.getElementById("bp-form");
-  const sysInput = document.getElementById("sys");
-  const diaInput = document.getElementById("dia");
-  const resultEl = document.getElementById("result");
-
-  if (form && sysInput && diaInput && resultEl) {
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-
-      const s = Number(sysInput.value);
-      const d = Number(diaInput.value);
-
-      try {
-        const category = classifyBp(s, d);
-        const pulse = computePulsePressure(s, d);
-        const map = computeMAP(s, d);
-
-        // Multi-line result, MAP formatted to ONE decimal place
-        resultEl.textContent =
-          `Category: ${category}\n` +
-          `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
-          `MAP: ${map.toFixed(1)} mmHg`;
-      } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Invalid blood pressure input.";
-        resultEl.textContent = message;
-        console.error(err);
-      }
-    });
-  }
 }
