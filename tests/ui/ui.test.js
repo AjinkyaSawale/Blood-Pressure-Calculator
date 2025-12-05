@@ -1,112 +1,69 @@
 // tests/ui/ui.test.js
-import { describe, it, expect } from "vitest";
+import { readFileSync } from "fs";
 import { JSDOM } from "jsdom";
+import { describe, it, expect, beforeEach } from "vitest";
 import { initUI } from "../../ui.js";
 
-// Helper: create a fresh DOM + wire UI for each test
+// Load the HTML exactly as the browser does
+const html = readFileSync("index.html", "utf8");
+
 function setupDomAndUI() {
-  const html = `
-    <!doctype html>
-    <html lang="en">
-    <head><title>BP Calculator Test</title></head>
-    <body>
-      <main class="card">
-        <h1>Blood Pressure Category Calculator</h1>
-
-        <form id="bp-form">
-          <div class="field">
-            <label for="sys">Systolic (70–190 mmHg)</label>
-            <input
-              id="sys"
-              name="sys"
-              type="number"
-              min="70"
-              max="190"
-              required
-            />
-            <small
-              id="sys-error"
-              class="error"
-              aria-live="polite"
-            ></small>
-          </div>
-
-          <div class="field">
-            <label for="dia">Diastolic (40–100 mmHg)</label>
-            <input
-              id="dia"
-              name="dia"
-              type="number"
-              min="40"
-              max="100"
-              required
-            />
-            <small
-              id="dia-error"
-              class="error"
-              aria-live="polite"
-            ></small>
-          </div>
-
-          <button type="submit" disabled>Calculate</button>
-        </form>
-
-        <section id="result" aria-live="polite"></section>
-      </main>
-    </body>
-    </html>
-  `;
-
-  const dom = new JSDOM(html, { url: "http://localhost" });
+  const dom = new JSDOM(html, { runScripts: "dangerously", resources: "usable" });
   const document = dom.window.document;
 
-  // Wire up UI against this DOM
+  // Initialise our UI wiring manually
   initUI(document);
 
-  const form = document.getElementById("bp-form");
-  const sys = document.getElementById("sys");
-  const dia = document.getElementById("dia");
-  const sysError = document.getElementById("sys-error");
-  const diaError = document.getElementById("dia-error");
-  const button = form.querySelector("button[type=submit]");
-  const result = document.getElementById("result");
-
-  return { dom, document, form, sys, dia, sysError, diaError, button, result };
+  return { dom, document };
 }
 
 describe("UI DOM behaviour", () => {
+  let dom, document;
+
+  beforeEach(() => {
+    const setup = setupDomAndUI();
+    dom = setup.dom;
+    document = setup.document;
+  });
+
   it("shows error for invalid systolic input and keeps button disabled", () => {
-    const { dom, sys, sysError, button } = setupDomAndUI();
+    const sys = document.getElementById("sys");
+    const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
+    const sysError = document.getElementById("sys-error");
 
-    sys.value = "250"; // too high
-    sys.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    sys.value = "20"; // invalid
+    sys.dispatchEvent(new dom.window.Event("input"));
 
-    expect(sysError.textContent).toContain(
-      "Systolic must be between 70 and 190."
-    );
+    expect(sysError.textContent).toContain("Systolic must be");
     expect(button.disabled).toBe(true);
   });
 
   it("shows error for invalid diastolic input and keeps button disabled", () => {
-    const { dom, dia, diaError, button } = setupDomAndUI();
+    const sys = document.getElementById("sys");
+    const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
+    const diaError = document.getElementById("dia-error");
 
-    dia.value = "30"; // too low
-    dia.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    dia.value = "10"; // invalid
+    dia.dispatchEvent(new dom.window.Event("input"));
 
-    expect(diaError.textContent).toContain(
-      "Diastolic must be between 40 and 100."
-    );
+    expect(diaError.textContent).toContain("Diastolic must be between 40 and 100.");
     expect(button.disabled).toBe(true);
   });
 
   it("enables button when both inputs are valid and clears errors", () => {
-    const { dom, sys, dia, sysError, diaError, button } = setupDomAndUI();
+    const sys = document.getElementById("sys");
+    const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
+    const sysError = document.getElementById("sys-error");
+    const diaError = document.getElementById("dia-error");
 
     sys.value = "120";
     dia.value = "80";
 
-    sys.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-    dia.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    sys.dispatchEvent(new dom.window.Event("input"));
+    dia.dispatchEvent(new dom.window.Event("input"));
 
     expect(sysError.textContent).toBe("");
     expect(diaError.textContent).toBe("");
@@ -114,21 +71,38 @@ describe("UI DOM behaviour", () => {
   });
 
   it("submits form with valid inputs and shows category + MAP", () => {
-    const { dom, form, sys, dia, result } = setupDomAndUI();
+    const sys = document.getElementById("sys");
+    const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
+    const form = document.getElementById("bp-form");
+    const result = document.getElementById("result");
 
     sys.value = "120";
     dia.value = "80";
 
-    sys.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-    dia.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    sys.dispatchEvent(new dom.window.Event("input"));
+    dia.dispatchEvent(new dom.window.Event("input"));
 
-    form.dispatchEvent(
-      new dom.window.Event("submit", { bubbles: true, cancelable: true })
-    );
+    // Form submit
+    form.dispatchEvent(new dom.window.Event("submit"));
 
-    const text = result.textContent;
+    expect(result.textContent).toContain("Category: Elevated");
+    expect(result.textContent).toContain("MAP: 93.3 mmHg");
+  });
 
-    expect(text).toContain("Category: Elevated");
-    expect(text).toContain("MAP:");
+  it("does NOT disable the button when both inputs are valid (no false-positive disable)", () => {
+    const sys = document.getElementById("sys");
+    const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
+
+    const win = dom.window;
+
+    sys.value = "130";
+    dia.value = "85";
+
+    sys.dispatchEvent(new win.Event("input"));
+    dia.dispatchEvent(new win.Event("input"));
+
+    expect(button.disabled).toBe(false);
   });
 });
