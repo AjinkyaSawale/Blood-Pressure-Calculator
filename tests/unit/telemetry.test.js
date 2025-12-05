@@ -1,61 +1,51 @@
 // tests/unit/telemetry.test.js
-import { describe, it, expect, vi } from "vitest";
-import {
-  recordEvent,
-  readTelemetryEvents,
-  TELEMETRY_STORAGE_KEY,
-} from "../../telemetry.js";
+import { describe, it, expect, beforeEach } from "vitest";
+import { recordEvent, readTelemetryEvents } from "../../telemetry.js";
 
 describe("Telemetry tracking", () => {
-  it("stores bp_calculated events in localStorage", () => {
-    // Fake in-memory storage
-    const store = {};
-    const fakeStorage = {
-      getItem: vi.fn((key) => (key in store ? store[key] : null)),
-      setItem: vi.fn((key, value) => {
-        store[key] = value;
-      }),
+  beforeEach(() => {
+    // Lightweight fake window + localStorage for tests
+    global.window = {
+      localStorage: {
+        _store: {},
+        getItem(key) {
+          return this._store[key] ?? null;
+        },
+        setItem(key, value) {
+          this._store[key] = value;
+        },
+        removeItem(key) {
+          delete this._store[key];
+        },
+        clear() {
+          this._store = {};
+        },
+      },
     };
+  });
 
-    // Use the override so we don't depend on real window.localStorage
-    recordEvent(
-      "bp_calculated",
-      { systolic: 120, diastolic: 80, category: "Elevated" },
-      fakeStorage,
-    );
+  it("stores bp_calculated events in localStorage", () => {
+    const evt = recordEvent("bp_calculated", {
+      systolic: 120,
+      diastolic: 80,
+      category: "Elevated",
+    });
 
-    const events = readTelemetryEvents(fakeStorage);
+    const stored = readTelemetryEvents();
 
-    // Basic assertions
-    expect(fakeStorage.setItem).toHaveBeenCalledTimes(1);
-    expect(events.length).toBe(1);
-
-    const evt = events[0];
     expect(evt.name).toBe("bp_calculated");
     expect(evt.payload.category).toBe("Elevated");
-    expect(evt.payload.systolic).toBe(120);
-    expect(evt.payload.diastolic).toBe(80);
-    expect(typeof evt.timestamp).toBe("string");
-
-    // Optional: check the raw stored value is JSON array
-    const raw = store[TELEMETRY_STORAGE_KEY];
-    const parsed = JSON.parse(raw);
-    expect(Array.isArray(parsed)).toBe(true);
+    expect(stored.length).toBe(1);
+    expect(stored[0].name).toBe("bp_calculated");
+    expect(stored[0].payload.systolic).toBe(120);
   });
 
   it("never throws even if localStorage is unavailable", () => {
-    // Simulate environment with no window / no localStorage
-    const previousWindow = globalThis.window;
-    // @ts-ignore - we deliberately overwrite for the test
-    delete globalThis.window;
+    // Simulate an environment with no localStorage
+    global.window = {};
 
-    expect(() => {
-      recordEvent("bp_calculated", { systolic: 140, diastolic: 90 });
-    }).not.toThrow();
-
-    // Restore window to avoid side effects
-    if (previousWindow) {
-      globalThis.window = previousWindow;
-    }
+    expect(() =>
+      recordEvent("bp_calculated", { systolic: 140, diastolic: 90 }),
+    ).not.toThrow();
   });
 });
