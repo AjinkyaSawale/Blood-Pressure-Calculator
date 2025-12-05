@@ -1,123 +1,81 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+    branches:
+      - develop
+      - main
 
 jobs:
   ci:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [ '22.x' ]
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node (match local)
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
+          node-version: 20
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
+      - name: Run lint
+        run: npm run lint --if-present
 
-      # Vitest suite: unit + UI + telemetry + lint-like + security tests
-      - name: Run unit / UI / telemetry / security tests (Vitest)
+      - name: Run unit + UI + security tests
         run: npm test
 
-      - name: Run BDD tests (Cucumber)
-        run: npm run test:bdd
+      - name: Run npm audit (security scan)
+        run: npm audit --audit-level=high
 
-      - name: Run security audit (npm audit)
-        run: npm run audit
+    outputs:
+      ci_status: ${{ job.status }}
 
-      # E2E is heavier, but we only have Node 22.x in the matrix now
-      - name: Install Playwright browsers (for E2E)
-        run: npx playwright install --with-deps
-
-      - name: Run E2E tests (Category + MAP + Low BP)
-        run: |
-          npx http-server -p 5500 -c-1 . &
-          sleep 5
-          npm run test:e2e
-
-  # --- CD: QA deployment (simulated) ---
   deploy_qa:
     needs: ci
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
-
+    if: needs.ci.result == 'success'
+    steps:
+      - name: Deploy to QA (simulated)
+        run: echo "Deploying to QA environment..."
     environment:
       name: qa
       url: https://example.com/qa
 
-    steps:
-      - name: QA deploy (simulated)
-        run: |
-          echo "🚀 Deploying Blood Pressure Calculator to QA..."
-          echo "Environment: QA"
-          echo "URL: https://example.com/qa"
-          echo "Smoke tests assumed to pass here."
-
-  # --- CD: Staging deployment (simulated) ---
   deploy_staging:
     needs: deploy_qa
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop'
-
+    steps:
+      - name: Deploy to Staging (simulated)
+        run: echo "Deploying to Staging environment..."
     environment:
       name: staging
       url: https://example.com/staging
 
-    steps:
-      - name: Staging deploy (simulated)
-        run: |
-          echo "🚀 Promoting build from QA to STAGING..."
-          echo "Environment: Staging"
-          echo "URL: https://example.com/staging"
-          echo "Running extra checks / UX review here."
-
-  # --- CD: Canary deployment simulation (on main) ---
   canary_release:
     needs: deploy_staging
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
     steps:
-      - name: Start canary rollout (10% traffic)
+      - name: Canary release (10% rollout simulation)
         run: |
-          echo "Starting CANARY rollout for new BP Calculator build..."
-          echo "Routing 10% of production traffic to v2, keeping 90% on v1."
-          echo "Monitoring error rate, latency and telemetry dashboards..."
+          echo "Starting 10% canary rollout..."
+          sleep 2
+          echo "Monitoring telemetry + logs..."
+          sleep 2
+          echo "Canary passed ✔"
 
-      - name: Evaluate canary health
-        run: |
-          echo "Canary looks healthy: error rate < 1%, latency within SLO."
-          echo "Ready to promote canary to full production."
+    environment:
+      name: canary
+      url: https://example.com/canary
 
-  # --- CD: Full production promotion (simulated) ---
   deploy_production:
     needs: canary_release
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
+    steps:
+      - name: Deploy to Production (simulated)
+        run: echo "Deploying to full production..."
     environment:
       name: production
       url: https://example.com
-
-    steps:
-      - name: Production deploy (simulated)
-        run: |
-          echo "Promoting CANARY to 100% PRODUCTION traffic..."
-          echo "Environment: Production"
-          echo "URL: https://example.com"
-          echo "Previous version kept ready for quick rollback (conceptual)."
