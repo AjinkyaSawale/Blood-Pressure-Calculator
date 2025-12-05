@@ -14,7 +14,9 @@
     "test:e2e:error": "node e2e/error.e2e.mjs",
     "test:e2e:low": "node e2e/bp-low.e2e.mjs",
     "test:lint-rules": "vitest run tests/lint",
-    "test:k6": "k6 run perf/bp-baseline.js"
+    "test:k6": "k6 run perf/bp-baseline.js",
+    "test:k6:stress": "k6 run perf/bp-stress.js",
+    "test:k6:soak": "k6 run perf/bp-soak.js"
 
   },
   "repository": {
