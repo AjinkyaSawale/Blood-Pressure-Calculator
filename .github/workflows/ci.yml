@@ -1,81 +1,154 @@
-name: ci
+name: CI
 
 on:
   push:
-    branches:
-      - develop
-      - main
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
 
 jobs:
+  # -------------------------
+  # 1) CI: build + test + security
+  # -------------------------
   ci:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node (match local)
+      - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.x
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run lint
-        run: npm run lint --if-present
+      - name: Run ESLint
+        run: npm run lint
 
-      - name: Run unit + UI + security tests
+      - name: Run unit + UI + telemetry tests (Vitest)
         run: npm test
 
-      - name: Run npm audit (security scan)
-        run: npm audit --audit-level=high
+      - name: Run BDD tests (Cucumber)
+        run: npm run test:bdd
 
-    outputs:
-      ci_status: ${{ job.status }}
+      - name: Run security audit (npm audit)
+        run: npm run audit
 
+      # E2E: Playwright against static http-server
+      - name: Install Playwright browsers (for E2E)
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests (Category + MAP + Low BP)
+        run: |
+          npx http-server -p 5500 -c-1 . &
+          sleep 5
+          npm run test:e2e
+
+  # -------------------------
+  # 2) CD: QA environment (simulated)
+  # -------------------------
   deploy_qa:
+    name: Deploy to QA (simulated)
     needs: ci
     runs-on: ubuntu-latest
-    if: needs.ci.result == 'success'
-    steps:
-      - name: Deploy to QA (simulated)
-        run: echo "Deploying to QA environment..."
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
     environment:
       name: qa
       url: https://example.com/qa
 
+    steps:
+      - name: Simulate QA deployment
+        run: |
+          echo "Deploying Blood Pressure Calculator to QA..."
+          echo "QA deployment complete (simulated)."
+
+  # -------------------------
+  # 3) CD: Staging environment (simulated)
+  # -------------------------
   deploy_staging:
+    name: Deploy to Staging (simulated)
     needs: deploy_qa
     runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to Staging (simulated)
-        run: echo "Deploying to Staging environment..."
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
     environment:
       name: staging
       url: https://example.com/staging
 
+    steps:
+      - name: Simulate Staging deployment
+        run: |
+          echo "Deploying Blood Pressure Calculator to Staging..."
+          echo "Staging deployment complete (simulated)."
+
+  # -------------------------
+  # 4) Canary release (10% traffic) + health check
+  # -------------------------
   canary_release:
+    name: Canary release (simulated)
     needs: deploy_staging
     runs-on: ubuntu-latest
-    steps:
-      - name: Canary release (10% rollout simulation)
-        run: |
-          echo "Starting 10% canary rollout..."
-          sleep 2
-          echo "Monitoring telemetry + logs..."
-          sleep 2
-          echo "Canary passed ✔"
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     environment:
-      name: canary
+      name: production-canary
       url: https://example.com/canary
 
-  deploy_production:
-    needs: canary_release
-    runs-on: ubuntu-latest
     steps:
-      - name: Deploy to Production (simulated)
-        run: echo "Deploying to full production..."
+      - name: Simulate canary deployment (10% traffic)
+        run: |
+          echo "Deploying new version to 10% of production traffic..."
+          echo "Environment: production-canary"
+
+      - name: Run canary smoke checks (simulated)
+        run: |
+          echo "Running smoke tests against canary..."
+          # For the CA we keep this passing.
+          # To simulate a failure + rollback, change the next line to: exit 1
+          echo "Canary looks healthy."
+
+  # -------------------------
+  # 5) Automatic rollback if canary fails
+  # -------------------------
+  rollback_production:
+    name: Rollback production (simulated)
+    needs: canary_release
+    # Runs only if some previous job failed AND specifically the canary job failed
+    if: ${{ failure() && needs.canary_release.result == 'failure' }}
+    runs-on: ubuntu-latest
+
     environment:
       name: production
       url: https://example.com
+
+    steps:
+      - name: Roll back to previous stable version
+        run: |
+          echo "Canary failed. Starting automatic rollback..."
+          echo "Switching all traffic back to last known good production release..."
+          echo "Rollback complete (simulated)."
+
+  # -------------------------
+  # 6) Full production deployment if canary is healthy
+  # -------------------------
+  deploy_production:
+    name: Deploy to Production (simulated)
+    needs: canary_release
+    # Only run when everything (including canary) is successful
+    if: ${{ success() && needs.canary_release.result == 'success' }}
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+      url: https://example.com
+
+    steps:
+      - name: Promote canary to 100% traffic
+        run: |
+          echo "Canary healthy – promoting new version to 100% of production traffic..."
+          echo "Production deployment complete (simulated)."
