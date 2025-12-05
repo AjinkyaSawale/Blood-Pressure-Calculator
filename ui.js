@@ -1,7 +1,8 @@
 // ui.js
 import { classifyBp, computePulsePressure, computeMAP } from "./app.js";
+import { recordEvent } from "./telemetry.js"; // telemetry hook
 
-// Allow injecting a custom document (for tests)
+// Allow injecting a custom document (for tests),
 // but default to the browser's document.
 export function initUI(doc = document) {
   const form = doc.getElementById("bp-form");
@@ -45,7 +46,16 @@ export function initUI(doc = document) {
   // Submit: only if valid
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (!validate()) return;
+
+    if (!validate()) {
+      // Telemetry: submit blocked by validation
+      recordEvent("bp_submit_blocked", {
+        systolic: sys.value,
+        diastolic: dia.value,
+        reason: "validation_failed",
+      });
+      return;
+    }
 
     const s = Number(sys.value);
     const d = Number(dia.value);
@@ -54,14 +64,35 @@ export function initUI(doc = document) {
       const category = classifyBp(s, d);
       const pulse = computePulsePressure(s, d);
       const map = computeMAP(s, d);
+      const mapRounded = Number(map.toFixed(1));
 
+      // Normal UI output (same format as before, tests rely on this)
       result.textContent =
         `Category: ${category}\n` +
         `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
-        `MAP: ${map.toFixed(1)} mmHg`;
+        `MAP: ${mapRounded.toFixed(1)} mmHg`;
+
+      // Telemetry: successful calculation
+      recordEvent("bp_calculated", {
+        systolic: s,
+        diastolic: d,
+        category,
+        pulsePressure: pulse.value,
+        widePulse: pulse.isWide,
+        map: mapRounded,
+      });
     } catch (err) {
-      result.textContent =
+      const message =
         err instanceof Error ? err.message : "Invalid blood pressure input.";
+
+      result.textContent = message;
+
+      // Telemetry: error during calculation
+      recordEvent("bp_error", {
+        systolic: s,
+        diastolic: d,
+        errorMessage: message,
+      });
       // we don't re-throw here to keep UI stable
     }
   });
