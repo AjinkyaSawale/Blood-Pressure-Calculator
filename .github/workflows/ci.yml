@@ -7,6 +7,9 @@ on:
     branches: [ main, develop ]
 
 jobs:
+  # -----------------------
+  # 1. Core CI (tests + scans)
+  # -----------------------
   ci:
     runs-on: ubuntu-latest
 
@@ -30,7 +33,7 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      - name: Run unit / UI / telemetry / security tests (Vitest)
+      - name: Run unit tests (Vitest)
         run: npm test
 
       - name: Run BDD tests (Cucumber)
@@ -44,62 +47,84 @@ jobs:
         if: matrix.node-version == '20'
         run: npx playwright install --with-deps
 
-      - name: Run E2E tests (Category + MAP + Low BP)
+      - name: Run E2E tests (Category + MAP)
         if: matrix.node-version == '20'
         run: |
           npx http-server -p 5500 -c-1 . &
           sleep 5
           npm run test:e2e
 
+  # -----------------------
+  # 2. Deploy to QA (simulated)
+  # -----------------------
   deploy_qa:
-    name: Deploy to QA (simulated)
     needs: ci
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop'
-    environment: qa
+
+    environment:
+      name: qa
+      url: https://example.com/qa   # simulated QA URL
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Simulate QA deployment
+      - name: Simulate deploy to QA
         run: |
-          echo "🔁 QA deploy (simulated) for Blood Pressure Calculator"
-          echo "This is where we would upload static files to a QA server."
-          echo "Branch: ${{ github.ref }}  Commit: ${{ github.sha }}"
+          echo "Simulating deploy to QA environment..."
+          mkdir -p deployments/qa
+          cp -r index.html styles.css app.js ui.js deployments/qa/ || true
+          echo "QA deploy simulation complete"
 
+  # -----------------------
+  # 3. Deploy to Staging (simulated)
+  # -----------------------
   deploy_staging:
-    name: Deploy to Staging (simulated)
-    needs: ci
+    needs: deploy_qa
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: staging
+    if: github.ref == 'refs/heads/develop'
+
+    environment:
+      name: staging
+      url: https://example.com/staging   # simulated staging URL
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Simulate Staging deployment
+      - name: Simulate deploy to Staging (canary style)
         run: |
-          echo "🚀 Staging deploy (simulated) for Blood Pressure Calculator"
-          echo "Represents a pre-production environment before canary/prod."
-          echo "Here we could run extra smoke tests if needed."
+          echo "🚦 Simulating canary-style deploy to STAGING..."
+          mkdir -p deployments/staging
+          cp -r index.html styles.css app.js ui.js deployments/staging/ || true
+          echo " Canary check notes:"
+          echo "- Compare staging vs QA behaviour"
+          echo "- Check telemetry events + k6 baseline before promoting to prod"
+          echo "Staging deploy simulation complete"
 
+  # -----------------------
+  # 4. Deploy to Production (simulated)
+  # -----------------------
   deploy_production:
-    name: Deploy to Production (simulated canary)
     needs: deploy_staging
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    environment: production
+
+    environment:
+      name: production
+      url: https://example.com   # purely illustrative
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Simulate Production (canary) deployment
+      - name: Simulate deploy to Production (blue/green style)
         run: |
-          echo "🌍 Starting CANARY-style deployment to PRODUCTION (simulated)"
-          echo "Step 1: Deploy to a small % of traffic."
-          echo "Step 2: Monitor telemetry + k6 metrics + error rate."
-          echo "Step 3: Roll out to 100% if everything is healthy."
-          echo "This satisfies the CA requirement for release + deployment strategy."
+          echo " Deploying new BLUE version of app to production folder..."
+          mkdir -p deployments/production-blue
+          cp -r index.html styles.css app.js ui.js deployments/production-blue/ || true
+
+          echo " BLUE version ready. In a real setup, traffic would be slowly shifted"
+          echo "   from GREEN -> BLUE (canary), watching telemetry + k6 dashboards."
+          echo "   If stable, BLUE becomes new GREEN."
