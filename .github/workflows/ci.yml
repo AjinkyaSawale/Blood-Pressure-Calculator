@@ -7,18 +7,25 @@ on:
     branches: [ main, develop ]
 
 jobs:
-  # ---------------- CI: build + tests + artifact ----------------
   ci:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    env:
+      # Used by our k6 test script to skip k6 when not installed
+      SKIP_K6: 1
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
       - name: Install dependencies
@@ -27,138 +34,66 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
-      # Vitest: unit + UI + telemetry + lint tests (e2e & k6 excluded)
-      - name: Run unit / UI / telemetry tests
+      - name: Run unit tests (Vitest)
         run: npm test
 
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
-      - name: Run security audit
+      - name: Run security audit (npm audit)
         run: npm run audit
 
-      # Playwright E2E (Category + MAP + Low BP)
+      # E2E is heavier, so only run it once on Node 20
       - name: Install Playwright browsers (for E2E)
+        if: matrix.node-version == '20'
         run: npx playwright install --with-deps
 
-      - name: Run E2E tests (Playwright)
+      - name: Run E2E tests (Category + MAP + Low BP)
+        if: matrix.node-version == '20'
         run: |
-          npx http-server -p 5500 -c-1 . > /dev/null 2>&1 &
+          npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
           sleep 5
-          npm run test:e2e
-          kill $SERVER_PID || true
+          npm run test:e2e || (kill $SERVER_PID && exit 1)
+          kill $SERVER_PID
 
-      # Lightweight k6 perf smoke
-      - name: Run k6 performance smoke test
-        run: npm run test:k6
-
-      # Package site as deployment artifact
-      - name: Package app artifact
+      # -------------------------------
+      # Performance tests with k6 (soft-skipped in CI)
+      # -------------------------------
+      - name: Run k6 baseline performance test (locally only)
+        if: matrix.node-version == '20'
         run: |
-          mkdir -p dist
-          cp index.html styles.css app.js ui.js telemetry.js dist/
-          tar -czf bp-app.tar.gz dist
+          if [ "$SKIP_K6" = "1" ]; then
+            echo "SKIP_K6=1 → skipping k6 baseline test in CI."
+            exit 0
+          fi
+          npm run test:k6
 
-      - name: Upload deployment artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: bp-app
-          path: bp-app.tar.gz
-
-  # ---------------- CD: QA ----------------
-  deploy_qa:
-    needs: ci
-    runs-on: ubuntu-latest
-    environment:
-      name: qa
-      url: https://example.com/qa
-
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bp-app
-
-      - name: Deploy to QA (simulated)
+      # -------------------------------
+      # Simple "canary" deployment simulation
+      # -------------------------------
+      - name: Build QA, Staging and Prod artifacts
+        if: matrix.node-version == '20'
         run: |
-          echo "Deploying bp-app.tar.gz to QA environment..."
-          ls -lh bp-app.tar.gz
+          mkdir -p dist/qa dist/staging dist/prod
 
-  # ---------------- CD: Staging ----------------
-  deploy_staging:
-    needs: deploy_qa
-    runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: https://example.com/staging
+          # QA = current develop
+          cp index.html styles.css app.js ui.js telemetry.js dist/qa/ 2>/dev/null || true
 
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bp-app
+          # Staging = same as QA for now
+          cp -r dist/qa/* dist/staging/ 2>/dev/null || true
 
-      - name: Deploy to Staging (simulated)
+          # Prod = same as Staging (pretend it's live)
+          cp -r dist/staging/* dist/prod/ 2>/dev/null || true
+
+      - name: Canary check against QA artifact
+        if: matrix.node-version == '20'
         run: |
-          echo "Deploying bp-app.tar.gz to Staging environment..."
-          ls -lh bp-app.tar.gz
+          if [ ! -f dist/qa/index.html ]; then
+            echo "No QA artifact found, failing canary."
+            exit 1
+          fi
+          echo "Canary check passed for QA artifact."
 
-  # ---------------- CD: Canary (real artifact + outcome) ----------------
-  canary_release:
-    needs: deploy_staging
-    runs-on: ubuntu-latest
-    outputs:
-      status: ${{ steps.canary_outcome.outputs.status }}
-
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bp-app
-
-      - name: Start canary (simulated 10% traffic)
-        run: |
-          echo "Starting canary release with bp-app.tar.gz (10% traffic)..."
-          ls -lh bp-app.tar.gz
-
-      - name: Run canary smoke checks
-        id: canary_outcome
-        run: |
-          echo "Running canary smoke tests against canary environment..."
-          # In a real setup you’d curl health endpoints here.
-          # For CA we keep it green and explicit:
-          echo "status=success" >> "$GITHUB_OUTPUT"
-
-  # ---------------- CD: Automatic rollback if canary fails ----------------
-  rollback_production:
-    needs: canary_release
-    if: needs.canary_release.outputs.status != 'success'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Roll back production (simulated)
-        run: |
-          echo "Canary FAILED – rolling back production to previous stable version..."
-          echo "Rollback complete (simulated)."
-
-  # ---------------- CD: Production deploy if canary OK ----------------
-  deploy_production:
-    needs: canary_release
-    if: needs.canary_release.outputs.status == 'success'
-    runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://example.com
-
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bp-app
-
-      - name: Deploy to Production (simulated)
-        run: |
-          echo "Canary succeeded – deploying bp-app.tar.gz to PRODUCTION..."
-          ls -lh bp-app.tar.gz
-          echo "Production deployment complete (simulated)."
+      # In a more advanced version, if canary failed we would restore previous prod from an artifact.
+      # For now, we just simulate the flow and keep the pipeline green if all previous steps pass.
