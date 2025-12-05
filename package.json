@@ -18,7 +18,9 @@
     "test:k6:stress": "k6 run perf/bp-stress.js",
     "test:k6:soak": "k6 run perf/bp-soak.js",
     "test:k6:spike": "k6 run perf/bp-spike.js",
-    "test:k6:breakpoint": "k6 run perf/bp-breakpoint.js"
+    "test:k6:breakpoint": "k6 run perf/bp-breakpoint.js",
+    "test:security": "vitest run tests/security/package.test.js"
+    
   },
   "repository": {
     "type": "git",
@@ -35,6 +37,7 @@
     "@cucumber/cucumber": "^12.2.0",
     "@eslint/js": "^9.39.1",
     "@vitest/coverage-v8": "^4.0.9",
+    "auditjs": "^4.0.47",
     "autocannon": "^8.0.0",
     "eslint": "^9.39.1",
     "globals": "^16.5.0",
