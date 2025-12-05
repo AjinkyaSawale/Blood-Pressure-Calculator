@@ -16,8 +16,9 @@
     "test:lint-rules": "vitest run tests/lint",
     "test:k6": "k6 run perf/bp-baseline.js",
     "test:k6:stress": "k6 run perf/bp-stress.js",
-    "test:k6:soak": "k6 run perf/bp-soak.js"
-
+    "test:k6:soak": "k6 run perf/bp-soak.js",
+    "test:k6:spike": "k6 run perf/bp-spike.js",
+    "test:k6:breakpoint": "k6 run perf/bp-breakpoint.js"
   },
   "repository": {
     "type": "git",
