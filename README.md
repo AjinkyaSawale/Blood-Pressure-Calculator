@@ -91,3 +91,45 @@ Run BDD scenarios:
 npm run test:bdd
 Run E2E tests:
 npm run test:e2e
+
+## Telemetry & Monitoring
+
+This application includes a lightweight telemetry layer to track how the calculator is used.
+
+- Telemetry module: `telemetry.js`
+- Main function: `recordEvent(name, payload)`
+- Storage:
+  - Events are stored in `localStorage` under the key `bp_telemetry_events`.
+  - Each event has the shape:
+
+    ```json
+    {
+      "name": "bp_calculated",
+      "payload": {
+        "systolic": 120,
+        "diastolic": 80,
+        "category": "Elevated",
+        "pulsePressure": 40,
+        "widePulse": false,
+        "map": 93.3
+      },
+      "timestamp": "2025-12-05T15:21:04.150Z"
+    }
+    ```
+
+- When telemetry is triggered:
+  - On successful BP calculation in the UI, the app calls `recordEvent("bp_calculated", {...})` with:
+    - systolic / diastolic
+    - calculated category
+    - pulse pressure + wide flag
+    - MAP value
+
+- Safety behaviour:
+  - If `localStorage` is unavailable (e.g. strict browser/privacy settings), `recordEvent` **fails silently** and logs to the console instead of breaking the UI.
+
+- Tests:
+  - `tests/unit/telemetry.test.js` verifies:
+    - Events are correctly written to `localStorage`.
+    - `recordEvent` never throws even when `localStorage` is not available.
+  - `tests/ui/ui.test.js` confirms that a `bp_calculated` telemetry event is generated when the user submits valid values in the real UI.
+
