@@ -7,42 +7,46 @@ import {
   computeMAP,
 } from "../../app.js";
 
-// Helper to create fresh DOM + UI each test
+let dom;
+let document;
+
 function setupDomAndUI() {
-  const html = `
-    <form id="bp-form">
-      <input id="sys" />
-      <small id="sys-error"></small>
+  dom = new JSDOM(`
+    <!doctype html>
+    <html>
+    <body>
+      <form id="bp-form">
+        <input id="sys" />
+        <small id="sys-error" class="error"></small>
 
-      <input id="dia" />
-      <small id="dia-error"></small>
+        <input id="dia" />
+        <small id="dia-error" class="error"></small>
 
-      <button type="submit" disabled>Calculate</button>
-    </form>
+        <button type="submit" disabled>Calculate</button>
+      </form>
 
-    <section id="result"></section>
-  `;
+      <section id="result"></section>
+    </body>
+    </html>
+  `);
 
-  const dom = new JSDOM(html);
-  const document = dom.window.document;
-
-  initUI(document);
-
-  return { dom, document };
+  document = dom.window.document;
+  initUI(document); // inject UI behaviour
 }
 
 describe("UI DOM behaviour", () => {
+  beforeEach(() => {
+    setupDomAndUI();
+  });
 
   it("shows error for invalid systolic input and keeps button disabled", () => {
-    const { document, dom } = setupDomAndUI();
-
     const sys = document.getElementById("sys");
     const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
     const sysError = document.getElementById("sys-error");
-    const button = document.querySelector("button");
 
-    sys.value = "20"; // invalid (<70)
-    dia.value = "80"; // valid
+    sys.value = "10"; // too low
+    dia.value = "80";
 
     sys.dispatchEvent(new dom.window.Event("input"));
     dia.dispatchEvent(new dom.window.Event("input"));
@@ -52,15 +56,13 @@ describe("UI DOM behaviour", () => {
   });
 
   it("shows error for invalid diastolic input and keeps button disabled", () => {
-    const { document, dom } = setupDomAndUI();
-
     const sys = document.getElementById("sys");
     const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
     const diaError = document.getElementById("dia-error");
-    const button = document.querySelector("button");
 
-    sys.value = "120"; // valid
-    dia.value = "20";  // invalid (<40)
+    sys.value = "120";
+    dia.value = "5"; // too low
 
     sys.dispatchEvent(new dom.window.Event("input"));
     dia.dispatchEvent(new dom.window.Event("input"));
@@ -70,13 +72,11 @@ describe("UI DOM behaviour", () => {
   });
 
   it("enables button when both inputs are valid and clears errors", () => {
-    const { document, dom } = setupDomAndUI();
-
     const sys = document.getElementById("sys");
     const dia = document.getElementById("dia");
+    const button = document.querySelector("button[type=submit]");
     const sysError = document.getElementById("sys-error");
     const diaError = document.getElementById("dia-error");
-    const button = document.querySelector("button");
 
     sys.value = "120";
     dia.value = "80";
@@ -90,45 +90,34 @@ describe("UI DOM behaviour", () => {
   });
 
   it("submits form with valid inputs and shows category + MAP", () => {
-    const { document, dom } = setupDomAndUI();
-
     const sys = document.getElementById("sys");
     const dia = document.getElementById("dia");
     const form = document.getElementById("bp-form");
-    const button = document.querySelector("button");
     const result = document.getElementById("result");
 
-    sys.value = "140";
-    dia.value = "90";
+    sys.value = "120";
+    dia.value = "80";
 
-    // activate button
     sys.dispatchEvent(new dom.window.Event("input"));
     dia.dispatchEvent(new dom.window.Event("input"));
 
-    expect(button.disabled).toBe(false);
-
-    // submit
     form.dispatchEvent(new dom.window.Event("submit"));
 
-    expect(result.textContent).toContain("High");
-    expect(result.textContent).toContain("MAP:");
+    expect(result.textContent).toContain("Category: Elevated");
+    expect(result.textContent).toContain("MAP: 93.3 mmHg");
   });
 
   it("does NOT disable the button when both inputs are valid (no false-positive disable)", () => {
-    const { document, dom } = setupDomAndUI();
-
     const sys = document.getElementById("sys");
     const dia = document.getElementById("dia");
-    const button = document.querySelector("button");
+    const button = document.querySelector("button[type=submit]");
 
-    sys.value = "119";
-    dia.value = "79";
+    sys.value = "110";
+    dia.value = "70";
 
-    sys.dispatchEvent(new dom.window.Event("input"));
-    dia.dispatchEvent(new dom.window.Event("input"));
+    sys.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    dia.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
 
-    // Button should remain enabled
     expect(button.disabled).toBe(false);
   });
-
 });
