@@ -84,3 +84,9 @@ button:hover {
   font-size: 0.8rem;
   color: #6b7280;
 }
+.error {
+  color: #c0392b;
+  font-size: 0.85rem;
+  min-height: 1em; /* keeps layout stable even when empty */
+}
+

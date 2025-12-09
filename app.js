@@ -1,70 +1,77 @@
-// --- Category enum ---
-const BpCategory = {
+// ---- Blood pressure categories ----
+export const BpCategory = Object.freeze({
   Low: "Low",
   Ideal: "Ideal",
-  PreHigh: "PreHigh",
+  Elevated: "Elevated",
   High: "High",
-};
+});
 
-// --- Classification logic ---
-// High:    systolic >= 140 OR diastolic >= 90
-// PreHigh: systolic >= 120 OR diastolic >= 80 (and not High)
-// Ideal:   systolic 90–119 AND diastolic 60–79
-// Low:     otherwise, within allowed range
-function classifyBp(systolic, diastolic) {
+// ---- Core classification logic ----
+export function classifyBp(systolic, diastolic) {
+  const s = Number(systolic);
+  const d = Number(diastolic);
+
+  // Basic validation based on assignment ranges
   if (
-    systolic < 70 ||
-    systolic > 190 ||
-    diastolic < 40 ||
-    diastolic > 100 ||
-    systolic <= diastolic
+    Number.isNaN(s) ||
+    Number.isNaN(d) ||
+    s < 70 ||
+    s > 190 ||
+    d < 40 ||
+    d > 100 ||
+    s <= d // systolic must be strictly greater than diastolic
   ) {
     throw new RangeError("Invalid blood pressure input.");
   }
 
-  if (systolic >= 140 || diastolic >= 90) return BpCategory.High;
-  if (systolic >= 120 || diastolic >= 80) return BpCategory.PreHigh;
-  if (
-    systolic >= 90 &&
-    systolic <= 119 &&
-    diastolic >= 60 &&
-    diastolic <= 79
-  ) {
+  // High BP
+  if (s >= 140 || d >= 90) {
+    return BpCategory.High;
+  }
+
+  // Elevated (was PreHigh)
+  if (s >= 120 || d >= 80) {
+    return BpCategory.Elevated;
+  }
+
+  // Ideal range
+  if (s >= 90 && s <= 119 && d >= 60 && d <= 79) {
     return BpCategory.Ideal;
   }
+
+  // Anything valid but below ideal
   return BpCategory.Low;
 }
 
-// --- New feature: Pulse Pressure + "Wide" flag ---
-function computePulsePressure(systolic, diastolic) {
-  const value = systolic - diastolic;
-  return { value, isWide: value > 60 };
+// ---- Pulse pressure calculation ----
+export function computePulsePressure(systolic, diastolic) {
+  const s = Number(systolic);
+  const d = Number(diastolic);
+  const value = s - d;
+
+  return {
+    value,
+    isWide: value > 60,
+  };
 }
 
-// Expose for tests later if needed
-window.BpApp = { BpCategory, classifyBp, computePulsePressure };
+// ---- Mean Arterial Pressure (MAP) ----
+// Formula: MAP = (SBP + 2 * DBP) / 3
+export function computeMAP(systolic, diastolic) {
+  const s = Number(systolic);
+  const d = Number(diastolic);
 
-// --- UI wiring ---
-const form = document.getElementById("bp-form");
-const sysInput = document.getElementById("sys");
-const diaInput = document.getElementById("dia");
-const resultBox = document.getElementById("result");
-
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  const systolic = Number(sysInput.value);
-  const diastolic = Number(diaInput.value);
-
-  try {
-    const category = classifyBp(systolic, diastolic);
-    const pp = computePulsePressure(systolic, diastolic);
-
-    resultBox.textContent = `Category: ${category} | Pulse Pressure: ${pp.value} mmHg ${
-      pp.isWide ? "(Wide)" : ""
-    }`;
-  } catch (err) {
-    resultBox.textContent = err.message;
-    console.error(err);
+  if (
+    Number.isNaN(s) ||
+    Number.isNaN(d) ||
+    s < 70 ||
+    s > 190 ||
+    d < 40 ||
+    d > 100 ||
+    s <= d
+  ) {
+    throw new RangeError("Invalid blood pressure input.");
   }
-});
+
+  return (s + 2 * d) / 3;
+}

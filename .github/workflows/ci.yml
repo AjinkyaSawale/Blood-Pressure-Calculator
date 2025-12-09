@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 1. Linting
+      - name: Run ESLint
+        run: npm run lint
+
+      # 2. Unit + UI + telemetry tests with coverage
+      - name: Run unit / UI / telemetry tests (Vitest)
+        run: npm test
+
+      # 3. BDD tests (Cucumber)
+      - name: Run BDD tests (Cucumber)
+        run: npm run test:bdd
+
+      # 4. Security scan (npm audit)
+      - name: Run security audit
+        run: npm run audit
+
+      # 5. Security “test” suite (dependency rules, package checks)
+      - name: Run security tests
+        run: npm run test:security
+
+      # 6. E2E tests (Playwright)
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests (Category + MAP + Low BP)
+        run: |
+          npx http-server -p 5500 -c-1 . &
+          SERVER_PID=$!
+          sleep 5
+          npm run test:e2e
+          kill $SERVER_PID
+
+      # 7. (Optional in CI) k6 performance tests – DISABLED to avoid k6 not installed
+      #    You will demo these locally in the video instead.
+      # - name: Run k6 baseline performance test
+      #   run: npm run test:k6
+
+  canary:
+    needs: ci
+    runs-on: ubuntu-latest
+    if: ${{ needs.ci.result == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Build canary artefact (static bundle)
+        run: |
+          mkdir -p dist
+          cp index.html styles.css app.js ui.js telemetry.js dist/
+          echo "Canary build created in dist/"
+
+      - name: Start canary server
+        run: |
+          npx http-server dist -p 5501 -c-1 . &
+          echo $! > canary.pid
+          sleep 5
+
+      - name: Simple canary health check
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5501/index.html || echo "000")
+          echo "Canary HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Canary FAILED — triggering automatic rollback"
+            exit 1
+          fi
+
+      - name: Canary success – simulate promote to prod
+        if: ${{ success() }}
+        run: |
+          echo "Canary looks healthy. Simulating promotion to prod slot..."
+          mkdir -p deploy/prod
+          cp -r dist/* deploy/prod/
+          echo "Prod files ready in deploy/prod"
+
+      - name: Stop canary server
+        if: always()
+        run: |
+          if [ -f canary.pid ]; then
+            kill "$(cat canary.pid)" || true
+          fi
+
+      - name: Upload deployment artefacts
+        if: ${{ success() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-bundle
+          path: deploy/prod
+
+  sonar:
+    name: SonarCloud analysis
+    needs: ci                # only run after your main CI job passes
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # only analyze main branch
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # SonarCloud recommends full history for blame
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage for Sonar
+        run: npm test
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
+            -Dsonar.organization=YOUR_ORG_KEY
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+

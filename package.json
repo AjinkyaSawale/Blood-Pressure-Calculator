@@ -1,0 +1,48 @@
+{
+  "name": "cscd-ca1",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "lint": "eslint .",
+    "test:e2e": "node e2e/bp.e2e.mjs",
+    "audit": "npm audit --audit-level=high",
+    "test:bdd": "cucumber-js",
+    "test:perf": "node perf/bp.perf.mjs",
+    "test:e2e:error": "node e2e/error.e2e.mjs",
+    "test:e2e:low": "node e2e/bp-low.e2e.mjs",
+    "test:lint-rules": "vitest run tests/lint",
+    "test:k6": "k6 run perf/bp-baseline.js",
+    "test:k6:stress": "k6 run perf/bp-stress.js",
+    "test:k6:soak": "k6 run perf/bp-soak.js",
+    "test:k6:spike": "k6 run perf/bp-spike.js",
+    "test:k6:breakpoint": "k6 run perf/bp-breakpoint.js",
+    "test:security": "vitest run tests/security/package.test.js",
+    "test": "vitest run --environment jsdom --coverage --coverage.reporter=lcov --coverage.reporter=text --exclude e2e"
+    
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AjinkyaSawale/Blood-Pressure-Calculator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AjinkyaSawale/Blood-Pressure-Calculator/issues"
+  },
+  "homepage": "https://github.com/AjinkyaSawale/Blood-Pressure-Calculator#readme",
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.2.0",
+    "@eslint/js": "^9.39.1",
+    "@vitest/coverage-v8": "^4.0.9",
+    "autocannon": "^8.0.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
+    "http-server": "^14.1.1",
+    "jsdom": "^27.2.0",
+    "playwright": "^1.56.1",
+    "vitest": "^4.0.9"
+  }
+}
