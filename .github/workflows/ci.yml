@@ -117,3 +117,38 @@ jobs:
         with:
           name: prod-bundle
           path: deploy/prod
+
+  sonar:
+    name: SonarCloud analysis
+    needs: ci                # only run after your main CI job passes
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # only analyze main branch
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0     # SonarCloud recommends full history for blame
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage for Sonar
+        run: npm test
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
+            -Dsonar.organization=YOUR_ORG_KEY
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
