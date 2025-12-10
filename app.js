@@ -1,3 +1,4 @@
+// app.js
 // ---- Blood pressure categories ----
 export const BpCategory = Object.freeze({
   Low: "Low",
@@ -43,7 +44,7 @@ export function classifyBp(systolic, diastolic) {
   return BpCategory.Low;
 }
 
-// ---- Pulse pressure calculation ----
+// ---- New feature: pulse pressure calculation ----
 export function computePulsePressure(systolic, diastolic) {
   const s = Number(systolic);
   const d = Number(diastolic);
@@ -55,7 +56,7 @@ export function computePulsePressure(systolic, diastolic) {
   };
 }
 
-// ---- Mean Arterial Pressure (MAP) ----
+// ---- New feature: Mean Arterial Pressure (MAP) ----
 // Formula: MAP = (SBP + 2 * DBP) / 3
 export function computeMAP(systolic, diastolic) {
   const s = Number(systolic);

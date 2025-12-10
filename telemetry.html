@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Telemetry Dashboard – Blood Pressure Calculator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+
+  <body>
+    <main class="card">
+      <h1>Telemetry Dashboard</h1>
+
+      <p class="hint">
+        This page shows anonymised telemetry events stored in your browser's
+        <code>localStorage</code>. Each time you calculate a blood pressure
+        category, a <code>bp_calculated</code> event is recorded.
+      </p>
+
+      <section>
+        <h2>Summary</h2>
+        <p id="telemetry-summary"></p>
+      </section>
+
+      <section>
+        <h2>Recent Events</h2>
+        <table class="telemetry-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Event</th>
+              <th>Category</th>
+              <th>Systolic</th>
+              <th>Diastolic</th>
+            </tr>
+          </thead>
+          <tbody id="telemetry-table-body"></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Raw Telemetry JSON</h2>
+        <pre id="telemetry-raw" class="telemetry-raw"></pre>
+      </section>
+
+      <p class="hint">
+        Tip: Open <strong>DevTools → Application → Local Storage</strong> to see
+        the underlying telemetry key that powers this dashboard.
+      </p>
+    </main>
+
+    <script type="module" src="./telemetry-dashboard.js"></script>
+  </body>
+</html>
