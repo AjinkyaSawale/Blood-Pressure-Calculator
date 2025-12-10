@@ -57,7 +57,6 @@ export function recordEvent(name, payload = {}) {
   };
 
   // Console log for debugging (dev-only style)
-  // eslint-disable-next-line no-console
   console.log("[telemetry]", evt);
 
   const storage = getSafeStorage();
