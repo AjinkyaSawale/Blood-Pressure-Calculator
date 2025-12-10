@@ -1,60 +1,67 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [develop, main]
   pull_request:
-    branches: [ develop, main ]
+    branches: [develop, main]
 
 jobs:
   ci:
-    name: CI checks (lint + tests + sonar)
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [20.19.6]
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Setup Node 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20.19.6
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      # --- Code quality / security ---
-
-      - name: Run ESLint
+      # ---- Code quality + tests ----
+      - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Run unit tests + coverage (Vitest)
+      - name: Unit + UI + telemetry tests (Vitest)
         run: npm test
 
-      - name: Run BDD tests (Cucumber)
+      - name: BDD tests (Cucumber)
         run: npm run test:bdd
 
-      - name: Run security tests (npm audit / package checks)
+      - name: Security tests (package checks / npm audit wrapper)
         run: npm run test:security
 
-      # --- UI + E2E (Playwright) ---
+      # ---- Playwright browsers for E2E ----
+      - name: Install Playwright Chromium browser
+        run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests (with local http-server)
+      - name: E2E tests (Playwright + http-server)
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
-          sleep 3
-          npm run test:e2e || (kill $SERVER_PID && exit 1)
+          npm run test:e2e
           kill $SERVER_PID
 
-      # --- SonarCloud analysis ---
+      # ---- Performance tests (k6) ----
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y k6
 
-      - name: SonarCloud Scan
+      - name: Performance tests (k6)
+        run: |
+          npx http-server -p 5500 -c-1 . &
+          SERVER_PID=$!
+          npm run test:k6
+          kill $SERVER_PID
+
+      # ---- SonarCloud analysis ----
+      - name: SonarCloud scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -63,50 +70,63 @@ jobs:
           args: >
             -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
             -Dsonar.organization=ajinkyasawale
-            -Dsonar.sources=.
-            -Dsonar.tests=tests
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-            -Dsonar.exclusions=coverage/**,perf/**,bdd/**,e2e/**,tests/lint/**,tests/security/**
-            -Dsonar.test.inclusions=tests/**/*.test.js
+
+  # ---------- CD: QA → Staging → Canary → Rollback/Prod (simulated) ----------
 
   deploy_qa:
-    name: Deploy to QA (simulated)
     needs: ci
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    environment:
+      name: qa
+      url: https://example.com/qa
     steps:
-      - name: QA deploy
-        run: echo "Deploying to QA environment (simulated)…"
+      - name: Deploy to QA (simulated)
+        run: echo "Deploying static build to QA…"
 
   deploy_staging:
-    name: Deploy to Staging (simulated)
     needs: deploy_qa
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://example.com/staging
     steps:
-      - name: Staging deploy
-        run: echo "Deploying to Staging environment (simulated)…"
+      - name: Deploy to Staging (simulated)
+        run: echo "Deploying to Staging…"
 
   canary_release:
-    name: Canary release (simulated)
     needs: deploy_staging
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
+    environment:
+      name: production-canary
+      url: https://example.com/canary
     steps:
-      - name: Run canary release
-        run: echo "Running canary release with 10% traffic (simulated)…"
+      - name: Canary release (simulated 10% traffic)
+        run: |
+          echo "Routing 10% traffic to new version…"
+          echo "Canary health checks passed ✅"
 
   rollback_production:
-    name: Rollback production (simulated)
     needs: canary_release
-    if: failure() && always()
+    if: failure()
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://example.com/prod
     steps:
-      - name: Rollback
-        run: echo "Canary failed – rolling back production (simulated)…"
+      - name: Rollback production (simulated)
+        run: echo "Rolling back to previous stable version…"
 
   deploy_production:
-    name: Deploy to Production (simulated)
     needs: canary_release
-    if: success()
+    if: needs.canary_release.result == 'success'
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://example.com/prod
     steps:
-      - name: Production deploy
-        run: echo "Canary healthy – deploying to Production (simulated)…"
+      - name: Deploy to Production (simulated)
+        run: echo "Promoting canary to 100% traffic…"
