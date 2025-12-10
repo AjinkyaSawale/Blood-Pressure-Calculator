@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ADD THIS - full clone for SonarCloud
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -28,6 +30,20 @@ jobs:
 
       - name: Run unit/UI/security tests with coverage (Vitest)
         run: npm test
+        env:
+          NODE_ENV: test
+
+      # ADD THIS DEBUG STEP
+      - name: Debug - Check coverage files
+        run: |
+          echo "=== Coverage directory contents ==="
+          ls -la coverage/
+          echo ""
+          echo "=== First 20 lines of lcov.info ==="
+          head -20 coverage/lcov.info || echo "lcov.info not found!"
+          echo ""
+          echo "=== Coverage summary ==="
+          cat coverage/coverage-final.json | jq -r '.total | "Statements: \(.statements.pct)%, Branches: \(.branches.pct)%, Functions: \(.functions.pct)%, Lines: \(.lines.pct)%"' || echo "coverage-final.json not found!"
 
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
@@ -35,7 +51,6 @@ jobs:
       - name: Run security audit (npm audit)
         run: npm run audit
 
-      # E2E is heavier, so we only run it once (Node 20 only anyway)
       - name: Install Playwright browsers (for E2E)
         run: npx playwright install --with-deps
 
@@ -43,20 +58,11 @@ jobs:
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
-          # Give server a moment to start
           sleep 5
           npm run test:e2e
-          # Always try to stop the server, but don't fail if it's already dead
           kill $SERVER_PID || true
 
-      # Optional: k6 performance tests are run locally, not in CI,
-      # to avoid binary installation issues on GitHub runners.
-      # You still keep perf/bp-baseline.js, bp-stress.js, bp-soak.js, etc.
-      # - name: Run k6 performance tests (optional)
-      #   run: npm run test:k6
-
       - name: SonarCloud Scan
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -66,3 +72,4 @@ jobs:
             -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
             -Dsonar.organization=ajinkyasawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.branch.name=${{ github.ref_name }}
