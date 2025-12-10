@@ -10,83 +10,59 @@ jobs:
   ci:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        node-version: [20]
-
     steps:
-      # 1) Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2) Setup Node
-      - name: Setup Node.js ${{ matrix.node-version }}
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20
           cache: npm
 
-      # 3) Install dependencies (NOT npm ci because lockfile may lag dependencies)
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      # 4) Install Playwright browsers (for E2E)
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      # 5) Install k6 (for performance tests)
-      - name: Install k6
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y k6
-
-      # 6) Lint
       - name: Run ESLint
         run: npm run lint
 
-      # 7) Unit + UI + telemetry tests with coverage
-      - name: Run unit tests (Vitest)
+      - name: Run unit/UI/security tests with coverage (Vitest)
         run: npm test
 
-      # 8) BDD tests
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
-      # 9) Security tests (npm audit / custom checks)
-      - name: Run security tests
-        run: npm run test:security
+      - name: Run security audit (npm audit)
+        run: npm run audit
 
-      # 10) Start HTTP server for E2E + k6 (single server, reused)
-      - name: Start HTTP server
+      # E2E is heavier, so we only run it once (Node 20 only anyway)
+      - name: Install Playwright browsers (for E2E)
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests (Category + MAP + Low BP)
         run: |
           npx http-server -p 5500 -c-1 . &
-          echo $! > http-server.pid
+          SERVER_PID=$!
+          # Give server a moment to start
           sleep 5
+          npm run test:e2e
+          # Always try to stop the server, but don't fail if it's already dead
+          kill $SERVER_PID || true
 
-      # 11) E2E tests (Playwright)
-      - name: Run E2E tests
-        run: npm run test:e2e
+      # Optional: k6 performance tests are run locally, not in CI,
+      # to avoid binary installation issues on GitHub runners.
+      # You still keep perf/bp-baseline.js, bp-stress.js, bp-soak.js, etc.
+      # - name: Run k6 performance tests (optional)
+      #   run: npm run test:k6
 
-      # 12) k6 baseline perf test
-      - name: Run k6 baseline performance test
-        run: npm run test:k6
-
-      # 13) Stop HTTP server (avoid EADDRINUSE)
-      - name: Stop HTTP server
-        if: always()
-        run: |
-          if [ -f http-server.pid ]; then
-            kill "$(cat http-server.pid)" || true
-            rm http-server.pid
-          fi
-
-      # 14) SonarCloud (static code analysis)
       - name: SonarCloud Scan
+        if: github.ref == 'refs/heads/main'
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
+          projectBaseDir: .
           args: >
             -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
-            -Dsonar.organization=ajinkyasawale
+            -Dsonar.organization=AjinkyaSawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
