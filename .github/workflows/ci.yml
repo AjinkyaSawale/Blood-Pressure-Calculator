@@ -4,7 +4,6 @@ on:
   push:
     branches: [develop, main]
   pull_request:
-    branches: [develop, main]
 
 jobs:
   ci:
@@ -14,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20.x
+      - name: Use Node.js 20.19.6
         uses: actions/setup-node@v4
         with:
           node-version: 20.19.6
@@ -23,45 +22,61 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # ---- Code quality + tests ----
+      # ----- CODE QUALITY / TESTS -----
+
       - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Unit + UI + telemetry tests (Vitest)
+      - name: Unit tests + coverage (Vitest)
         run: npm test
 
       - name: BDD tests (Cucumber)
         run: npm run test:bdd
 
-      - name: Security tests (package checks / npm audit wrapper)
+      - name: Security tests (custom)
         run: npm run test:security
 
-      # ---- Playwright browsers for E2E ----
-      - name: Install Playwright Chromium browser
+      # ----- E2E (Playwright + http-server) -----
+
+      - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: E2E tests (Playwright + http-server)
+      - name: E2E tests (Playwright against http-server)
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
+
+          npx wait-on http://127.0.0.1:5500/index.html
           npm run test:e2e
+
           kill $SERVER_PID
 
-      # ---- Performance tests (k6) ----
-      - name: Install k6
+      # ----- PERFORMANCE (k6) -----
+
+      - name: Install k6 from official repo
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates gnupg curl
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/k6.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/k6.gpg] https://dl.k6.io/deb stable main" | \
+            sudo tee /etc/apt/sources.list.d/k6.list > /dev/null
           sudo apt-get update
           sudo apt-get install -y k6
 
-      - name: Performance tests (k6)
+      - name: Run k6 performance tests
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
+
+          npx wait-on http://127.0.0.1:5500/index.html
           npm run test:k6
+
           kill $SERVER_PID
 
-      # ---- SonarCloud analysis ----
-      - name: SonarCloud scan
+      # ----- SONARCLOUD -----
+
+      - name: SonarCloud analysis
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -72,61 +87,41 @@ jobs:
             -Dsonar.organization=ajinkyasawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
-  # ---------- CD: QA → Staging → Canary → Rollback/Prod (simulated) ----------
+  # ---------- SIMULATED CD FLOW ----------
 
   deploy_qa:
     needs: ci
-    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    environment:
-      name: qa
-      url: https://example.com/qa
     steps:
       - name: Deploy to QA (simulated)
-        run: echo "Deploying static build to QA…"
+        run: echo "Deploying to QA environment at https://example.com/qa"
 
   deploy_staging:
     needs: deploy_qa
-    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: https://example.com/staging
     steps:
       - name: Deploy to Staging (simulated)
-        run: echo "Deploying to Staging…"
+        run: echo "Deploying to Staging environment at https://example.com/staging"
 
   canary_release:
     needs: deploy_staging
-    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
-    environment:
-      name: production-canary
-      url: https://example.com/canary
     steps:
-      - name: Canary release (simulated 10% traffic)
-        run: |
-          echo "Routing 10% traffic to new version…"
-          echo "Canary health checks passed ✅"
+      - name: Canary release (10% traffic, simulated)
+        run: echo "Running canary release with 10% traffic"
 
   rollback_production:
     needs: canary_release
-    if: failure()
+    if: needs.canary_release.result == 'failure'
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://example.com/prod
     steps:
       - name: Rollback production (simulated)
-        run: echo "Rolling back to previous stable version…"
+        run: echo "Canary failed – rolling back to previous production version"
 
   deploy_production:
     needs: canary_release
     if: needs.canary_release.result == 'success'
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://example.com/prod
     steps:
       - name: Deploy to Production (simulated)
-        run: echo "Promoting canary to 100% traffic…"
+        run: echo "Canary OK – promoting to full production at https://example.com"
