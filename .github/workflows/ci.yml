@@ -1,127 +1,134 @@
-name: ci
+name: CI
 
 on:
   push:
-    branches: [develop, main]
+    branches: [main, develop]
   pull_request:
+    branches: [main, develop]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Use Node.js 20.19.6
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20.19.6
+          node-version: 20
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      # ----- CODE QUALITY / TESTS -----
+      # ---------- CODE QUALITY & TESTS ----------
 
       - name: Lint (ESLint)
         run: npm run lint
 
-      - name: Unit tests + coverage (Vitest)
+      - name: Unit + UI + Telemetry tests (Vitest + jsdom)
         run: npm test
 
       - name: BDD tests (Cucumber)
         run: npm run test:bdd
 
-      - name: Security tests (custom)
+      # ---------- START HTTP SERVER ONCE FOR E2E + K6 ----------
+
+      - name: Start HTTP server for browser + k6
+        run: |
+          npx http-server -p 5500 -c-1 . &
+          echo $! > http-server.pid
+        env:
+          NODE_ENV: test
+
+      - name: Install Playwright browsers (for E2E)
+        run: npx playwright install --with-deps
+
+      - name: E2E tests (Playwright + real browser)
+        run: npm run test:e2e
+
+      - name: Performance baseline (k6)
+        run: npm run test:k6
+
+      - name: Stop HTTP server (do not fail if already dead)
+        if: always()
+        run: |
+          if [ -f http-server.pid ]; then
+            PID="$(cat http-server.pid)"
+            if ps -p "$PID" > /dev/null 2>&1; then
+              echo "Stopping http-server (PID=$PID)…"
+              kill "$PID"
+            else
+              echo "http-server already stopped; nothing to kill."
+            fi
+          else
+            echo "http-server.pid not found – nothing to stop."
+          fi
+
+      # ---------- SECURITY CHECKS ----------
+
+      - name: Security scan (npm audit / custom script)
         run: npm run test:security
 
-      # ----- E2E (Playwright + http-server) -----
+      # ---------- SONARCLOUD ANALYSIS ----------
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: E2E tests (Playwright against http-server)
-        run: |
-          npx http-server -p 5500 -c-1 . &
-          SERVER_PID=$!
-
-          npx wait-on http://127.0.0.1:5500/index.html
-          npm run test:e2e
-
-          kill $SERVER_PID
-
-      # ----- PERFORMANCE (k6) -----
-
-      - name: Install k6 from official repo
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ca-certificates gnupg curl
-          sudo mkdir -p /etc/apt/keyrings
-          curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/k6.gpg
-          echo "deb [signed-by=/etc/apt/keyrings/k6.gpg] https://dl.k6.io/deb stable main" | \
-            sudo tee /etc/apt/sources.list.d/k6.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y k6
-
-      - name: Run k6 performance tests
-        run: |
-          npx http-server -p 5500 -c-1 . &
-          SERVER_PID=$!
-
-          npx wait-on http://127.0.0.1:5500/index.html
-          npm run test:k6
-
-          kill $SERVER_PID
-
-      # ----- SONARCLOUD -----
-
-      - name: SonarCloud analysis
+      - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          projectBaseDir: .
           args: >
             -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
             -Dsonar.organization=ajinkyasawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
-  # ---------- SIMULATED CD FLOW ----------
+  # ---------- CD FLOW (SIMULATED) ----------
 
   deploy_qa:
     needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to QA (simulated)
-        run: echo "Deploying to QA environment at https://example.com/qa"
+        run: |
+          echo "Deploying build to QA environment…"
+          echo "QA URL: https://example.com/qa"
 
   deploy_staging:
     needs: deploy_qa
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Staging (simulated)
-        run: echo "Deploying to Staging environment at https://example.com/staging"
+        run: |
+          echo "Deploying build to Staging environment…"
+          echo "Staging URL: https://example.com/staging"
 
   canary_release:
     needs: deploy_staging
     runs-on: ubuntu-latest
     steps:
-      - name: Canary release (10% traffic, simulated)
-        run: echo "Running canary release with 10% traffic"
+      - name: Canary release (simulated)
+        run: |
+          echo "Starting canary release with 10% traffic…"
+          echo "Monitoring telemetry + k6 results for errors…"
+          # here we would normally check metrics / error rate etc.
 
   rollback_production:
     needs: canary_release
-    if: needs.canary_release.result == 'failure'
     runs-on: ubuntu-latest
+    if: failure()   # only runs if previous job fails
     steps:
       - name: Rollback production (simulated)
-        run: echo "Canary failed – rolling back to previous production version"
+        run: |
+          echo "Canary failed – rolling back production to previous version…"
 
   deploy_production:
     needs: canary_release
-    if: needs.canary_release.result == 'success'
     runs-on: ubuntu-latest
+    if: success()   # only when canary is healthy
     steps:
       - name: Deploy to Production (simulated)
-        run: echo "Canary OK – promoting to full production at https://example.com"
+        run: |
+          echo "Canary healthy – promoting to full production…"
+          echo "Production URL: https://example.com"
