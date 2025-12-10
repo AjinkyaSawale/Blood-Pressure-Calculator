@@ -47,7 +47,3 @@ Scenario: Low blood pressure result
   Then I should see "Invalid blood pressure input."
 
 
-
-
-
-

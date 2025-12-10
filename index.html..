@@ -14,14 +14,36 @@
     <form id="bp-form">
       <div class="field">
         <label for="sys">Systolic (70–190 mmHg)</label>
-        <input id="sys" name="sys" type="number" min="70" max="190" required />
-        <small id="sys-error" class="error" aria-live="polite"></small>
+        <input
+          id="sys"
+          name="sys"
+          type="number"
+          min="70"
+          max="190"
+          required
+        />
+        <small
+          id="sys-error"
+          class="error"
+          aria-live="polite"
+        ></small>
       </div>
 
       <div class="field">
         <label for="dia">Diastolic (40–100 mmHg)</label>
-        <input id="dia" name="dia" type="number" min="40" max="100" required />
-        <small id="dia-error" class="error" aria-live="polite"></small>
+        <input
+          id="dia"
+          name="dia"
+          type="number"
+          min="40"
+          max="100"
+          required
+        />
+        <small
+          id="dia-error"
+          class="error"
+          aria-live="polite"
+        ></small>
       </div>
 
       <button type="submit" disabled>Calculate</button>
@@ -30,15 +52,12 @@
     <section id="result" aria-live="polite"></section>
 
     <p class="hint">
-      * Lower limits are inclusive. For example, systolic ≥ 140 or diastolic ≥ 90 means <strong>High blood pressure</strong>.
+      * Lower limits are inclusive. For example, systolic ≥ 140 or diastolic ≥ 90
+      means <strong>High blood pressure</strong>.
     </p>
   </main>
 
+  <!-- Load ONLY the UI layer -->
   <script type="module" src="./ui.js"></script>
-    <!-- Load ONLY the UI layer -->
-  <script type="module">
-    import { initUI } from "./ui.js";
-    initUI(document);
-  </script>
 </body>
 </html>
