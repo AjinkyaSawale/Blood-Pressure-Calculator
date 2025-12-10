@@ -30,14 +30,25 @@
     <section id="result" aria-live="polite"></section>
 
     <p class="hint">
-      * Lower limits are inclusive. For example, systolic ≥ 140 or diastolic ≥ 90 means <strong>High blood pressure</strong>.
+      * Lower limits are inclusive. For example, systolic ≥ 140 or diastolic ≥ 90
+      means <strong>High blood pressure</strong>.
     </p>
   </main>
 
-  <script type="module" src="./ui.js"></script>
-    <!-- Load ONLY the UI layer -->
+  <!-- App Insights + UI bootstrapping -->
   <script type="module">
+    import { initAppInsights } from "./appinsights.js";
     import { initUI } from "./ui.js";
+
+    const CONNECTION_STRING =
+      "InstrumentationKey=ff4bb0a6-a5ab-4abb-9ea1-a49b3b1f191f;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=db052ca9-9929-464c-b45a-e3dbb7beb53d";
+
+    const ai = initAppInsights(CONNECTION_STRING);
+
+    // expose globally (safe for ui.js)
+    window.appInsights = window.appInsights || ai;
+
+    // boot UI
     initUI(document);
   </script>
 </body>
