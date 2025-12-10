@@ -64,5 +64,5 @@ jobs:
           projectBaseDir: .
           args: >
             -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
-            -Dsonar.organization=AjinkyaSawale
+            -Dsonar.organization=ajinkyasawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
