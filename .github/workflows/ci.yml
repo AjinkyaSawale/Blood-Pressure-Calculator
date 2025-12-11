@@ -44,7 +44,7 @@ jobs:
         run: npm audit --audit-level=high
 
       # ---------------------------
-      # OWASP Dependency Check (advisory)
+      # OWASP Dependency Check (advisory / non-blocking)
       # ---------------------------
       - name: OWASP Dependency Check - Download
         run: |
@@ -52,8 +52,9 @@ jobs:
           unzip dependency-check-12.1.0-release.zip
 
       - name: OWASP Dependency Check - Run Scan (non-blocking)
+        continue-on-error: true   # don't fail CI on upstream component-reports bug
         env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}   # <-- GitHub Secret
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           ./dependency-check/bin/dependency-check.sh \
             --project "Blood Pressure Calculator" \
@@ -61,7 +62,7 @@ jobs:
             --format "JSON" \
             --out dependency-check-report \
             --nvdApiKey "$NVD_API_KEY" \
-            --failOnCVSS 7 || echo "Dependency-Check exited non-zero (e.g. component-reports/SAFETY issue). Report still generated for review."
+            --failOnCVSS 7
 
       - name: Upload Dependency Check Report
         uses: actions/upload-artifact@v4
@@ -70,16 +71,23 @@ jobs:
           path: dependency-check-report
 
       # ---------------------------
-      # E2E (Playwright)
+      # E2E (Playwright) – start local server first
       # ---------------------------
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
       - name: Run E2E tests (Category + MAP + Low BP)
-        run: npm run test:e2e
+        run: |
+          npx http-server -p 5500 -c-1 . &
+          SERVER_PID=$!
+          sleep 5
+
+          npm run test:e2e
+
+          kill $SERVER_PID || true
 
       # ---------------------------
-      # Performance Testing (k6)
+      # Performance Testing (k6 baseline)
       # ---------------------------
       - name: Setup k6
         uses: grafana/setup-k6-action@v1
