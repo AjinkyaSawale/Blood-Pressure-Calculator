@@ -37,6 +37,28 @@ jobs:
       - name: Run security audit (npm audit)
         run: npm run audit
 
+      # 🔽 NEW: OWASP Dependency-Check integration 🔽
+      - name: OWASP Dependency Check - Download
+        run: |
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.4/dependency-check-10.0.4-release.zip
+          unzip dependency-check-10.0.4-release.zip -d dependency-check
+
+      - name: OWASP Dependency Check - Run Scan
+        run: |
+          ./dependency-check/bin/dependency-check.sh \
+            --project "BP Calculator" \
+            --scan . \
+            --format "HTML" \
+            --format "JSON" \
+            --out dependency-check-report
+
+      - name: Upload Dependency Check Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: dependency-check-report
+      # 🔼 NEW: OWASP Dependency-Check integration 🔼
+
       - name: Install Playwright browsers (for E2E)
         run: npx playwright install --with-deps
 
