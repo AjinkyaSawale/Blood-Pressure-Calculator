@@ -32,7 +32,7 @@ jobs:
       # Unit + BDD Tests
       # ---------------------------
       - name: Run unit tests (Vitest)
-        run: npm run test:ci
+        run: npm test
 
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
