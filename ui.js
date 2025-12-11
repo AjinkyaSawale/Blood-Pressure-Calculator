@@ -1,11 +1,14 @@
 // ui.js
+/* global appInsights */
+
 import { classifyBp, computePulsePressure, computeMAP } from "./app.js";
 import { recordEvent } from "./telemetry.js";
 
-// Allow injecting a custom document (for tests), default to real browser document.
+// Allow injecting a custom document (for tests)
+// but default to the browser's document.
 export function initUI(doc = document) {
   const form = doc.getElementById("bp-form");
-  if (!form) return; // safety for tests / partial DOM
+  if (!form) return; // Safety guard for tests with partial DOM
 
   const sys = doc.getElementById("sys");
   const dia = doc.getElementById("dia");
@@ -55,26 +58,46 @@ export function initUI(doc = document) {
       const pulse = computePulsePressure(s, d);
       const map = computeMAP(s, d);
 
-      // Telemetry: record successful calculation
+      // 1) Update UI
+      result.textContent =
+        `Category: ${category}\n` +
+        `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
+        `MAP: ${map.toFixed(1)} mmHg`;
+
+      // 2) Custom local telemetry
       recordEvent("bp_calculated", {
         systolic: s,
         diastolic: d,
         category,
         pulsePressure: pulse.value,
         widePulse: pulse.isWide,
-        map,
+        map: Number(map.toFixed(1)),
       });
 
-      result.textContent =
-        `Category: ${category}\n` +
-        `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
-        `MAP: ${map.toFixed(1)} mmHg`;
+      // 3) Azure Application Insights event (if available)
+      if (
+        typeof appInsights !== "undefined" &&
+        appInsights &&
+        typeof appInsights.trackEvent === "function"
+      ) {
+        appInsights.trackEvent(
+          {
+            name: "bp_calculated",
+          },
+          {
+            systolic: s,
+            diastolic: d,
+            category,
+            pulsePressure: pulse.value,
+            widePulse: pulse.isWide,
+            map: Number(map.toFixed(1)),
+          }
+        );
+      }
     } catch (error) {
       result.textContent =
-        error instanceof Error
-          ? error.message
-          : "Invalid blood pressure input.";
-      // keep UI stable – no rethrow
+        error instanceof Error ? error.message : "Invalid blood pressure input.";
+      // we don't re-throw here to keep UI stable
     }
   });
 
@@ -84,7 +107,7 @@ export function initUI(doc = document) {
   diaError.textContent = "";
 }
 
-// Auto-wire only in a real browser (not in tests)
+// Auto-wire only in a real browser (not needed for tests)
 if (typeof document !== "undefined") {
   initUI(document);
 }
