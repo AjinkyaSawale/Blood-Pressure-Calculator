@@ -42,10 +42,8 @@ jobs:
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
-          # Give server a moment to start
           sleep 5
           npm run test:e2e
-          # Always try to stop the server, but don't fail if it's already dead
           kill $SERVER_PID || true
 
       - name: SonarCloud Scan
@@ -60,7 +58,6 @@ jobs:
             -Dsonar.organization=ajinkyasawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
-      # NEW: Upload JUnit + HTML coverage as artifacts
       - name: Upload test reports and coverage artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -110,7 +107,6 @@ jobs:
           CLEAN_URL=$(echo "$STAGING_URL" | tr -d '[:space:]')
           echo "Cleaned URL: '$CLEAN_URL'"
 
-          # Request the page and capture status code
           HTTP_STATUS=$(curl -s -o smoke.html -w "%{http_code}" "$CLEAN_URL")
 
           echo "HTTP status: $HTTP_STATUS"
@@ -119,11 +115,10 @@ jobs:
             exit 1
           fi
 
-      - name: Verify page contains BP title text
+      - name: Verify page contains expected staging text
         run: |
-          # Re-use the previously downloaded smoke.html
-          if ! grep -qi "Blood Pressure Category Calculator" smoke.html; then
-            echo "❌ Staging page does not contain expected title text"
+          if ! grep -qi "Welcome to Azure Container Instances!" smoke.html; then
+            echo "❌ Staging page does not contain expected Azure sample text"
             exit 1
           fi
 
