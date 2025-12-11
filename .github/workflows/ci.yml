@@ -71,7 +71,7 @@ jobs:
   deploy-staging:
     needs: ci
     runs-on: ubuntu-latest
-    # 🔁 NOW runs on both develop and main (blue–green prep)
+    # 🔁 runs on both develop and main now
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
 
     steps:
@@ -95,7 +95,7 @@ jobs:
 
   smoke-staging:
     name: Smoke test staging (live)
-    # 🔁 Now depends on deploy-staging (so we smoke-test what we just deployed)
+    # 🔁 now depends on deploy-staging
     needs: deploy-staging
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
