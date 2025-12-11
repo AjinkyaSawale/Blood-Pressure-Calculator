@@ -37,11 +37,11 @@ jobs:
       - name: Run security audit (npm audit)
         run: npm run audit
 
-      # 🔽 OWASP Dependency-Check integration 🔽
+      # 🔽 UPDATED: OWASP Dependency-Check v12.1.0 (fixes CVSS v4 SAFETY bug)
       - name: OWASP Dependency Check - Download
         run: |
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.4/dependency-check-10.0.4-release.zip
-          unzip dependency-check-10.0.4-release.zip
+          wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
+          unzip dependency-check-12.1.0-release.zip
           ls -R
 
       - name: OWASP Dependency Check - Run Scan
@@ -61,7 +61,7 @@ jobs:
         with:
           name: dependency-check-report
           path: dependency-check-report
-      # 🔼 OWASP Dependency-Check integration 🔼
+      # 🔼 END OF UPDATED OWASP BLOCK 🔼
 
       - name: Install Playwright browsers (for E2E)
         run: npx playwright install --with-deps
@@ -70,10 +70,8 @@ jobs:
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
-          # Give server a moment to start
           sleep 5
           npm run test:e2e
-          # Always try to stop the server, but don't fail if it's already dead
           kill $SERVER_PID || true
 
       # SonarCloud analysis (main branch only)
@@ -91,10 +89,8 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
   verify_azure_production:
-    # Run only after CI job succeeds
     needs: ci
     runs-on: ubuntu-latest
-    # Only for main branch (your real production)
     if: github.ref == 'refs/heads/main'
 
     environment:
