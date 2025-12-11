@@ -106,10 +106,12 @@ jobs:
         env:
           STAGING_URL: ${{ vars.STAGING_URL }}
         run: |
-          echo "Hitting staging at: $STAGING_URL"
+          echo "Original STAGING_URL: '$STAGING_URL'"
+          CLEAN_URL=$(echo "$STAGING_URL" | tr -d '[:space:]')
+          echo "Cleaned URL: '$CLEAN_URL'"
 
           # Request the page and capture status code
-          HTTP_STATUS=$(curl -s -o smoke.html -w "%{http_code}" "$STAGING_URL")
+          HTTP_STATUS=$(curl -s -o smoke.html -w "%{http_code}" "$CLEAN_URL")
 
           echo "HTTP status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" != "200" ]; then
