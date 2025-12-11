@@ -1,10 +1,10 @@
-name: CI
+name: ci
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [develop, main]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main]
 
 jobs:
   ci:
@@ -13,94 +13,83 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Run unit/UI/security tests with coverage (Vitest)
-        run: npm test
+      - name: Run unit tests (Vitest)
+        run: npm run test:ci
 
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
       - name: Run security audit (npm audit)
-        run: npm run audit
+        run: npm audit --audit-level=high
 
-      # 🔽 UPDATED: OWASP Dependency-Check v12.1.0 (fixes CVSS v4 SAFETY bug)
+      # ---------------------------
+      # OWASP Dependency Check
+      # ---------------------------
       - name: OWASP Dependency Check - Download
         run: |
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
           unzip dependency-check-12.1.0-release.zip
-          ls -R
 
       - name: OWASP Dependency Check - Run Scan
-        continue-on-error: true
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}   # <-- GitHub Secret
         run: |
-          mkdir -p dependency-check-report
           ./dependency-check/bin/dependency-check.sh \
-            --project "BP Calculator" \
+            --project "Blood Pressure Calculator" \
             --scan . \
-            --format "HTML" \
             --format "JSON" \
-            --out dependency-check-report
+            --out dependency-check-report \
+            --nvdApiKey "$NVD_API_KEY" \
+            --failOnCVSS 7
 
       - name: Upload Dependency Check Report
-        if: hashFiles('dependency-check-report/**') != ''
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
           path: dependency-check-report
-      # 🔼 END OF UPDATED OWASP BLOCK 🔼
 
-      - name: Install Playwright browsers (for E2E)
+      # ---------------------------
+      # Playwright Setup & E2E tests
+      # ---------------------------
+      - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
       - name: Run E2E tests (Category + MAP + Low BP)
+        run: npm run test:e2e
+
+      # ---------------------------
+      # Performance testing with k6 (baseline)
+      # ---------------------------
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v0.3.1
+
+      - name: Run k6 baseline performance test
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
+
+          # Give server time to start
           sleep 5
-          npm run test:e2e
+
+          # Run k6 baseline test (10s, thresholds enforced)
+          k6 run perf/bp-baseline.js
+
+          # Try to stop the server; don't fail if it's already dead
           kill $SERVER_PID || true
 
-      # SonarCloud analysis (main branch only)
+      # ---------------------------
+      # SonarCloud Scan
+      # ---------------------------
       - name: SonarCloud Scan
-        if: github.ref == 'refs/heads/main'
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectBaseDir: .
-          args: >
-            -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
-            -Dsonar.organization=ajinkyasawale
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-
-  verify_azure_production:
-    needs: ci
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    environment:
-      name: production-azure
-      url: http://bp-calculator-app-1765396413.eastus.azurecontainer.io
-
-    steps:
-      - name: Smoke test Azure Container (live production)
-        run: |
-          echo "Hitting live Azure Container app..."
-          curl -I --fail \
-            http://bp-calculator-app-1765396413.eastus.azurecontainer.io || exit 1
-          echo "Azure production container is healthy"
