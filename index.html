@@ -22,11 +22,7 @@
             max="190"
             required
           />
-          <small
-            id="sys-error"
-            class="error"
-            aria-live="polite"
-          ></small>
+          <small id="sys-error" class="error" aria-live="polite"></small>
         </div>
 
         <div class="field">
@@ -39,11 +35,7 @@
             max="100"
             required
           />
-          <small
-            id="dia-error"
-            class="error"
-            aria-live="polite"
-          ></small>
+          <small id="dia-error" class="error" aria-live="polite"></small>
         </div>
 
         <button type="submit" disabled>Calculate</button>
@@ -57,29 +49,51 @@
       </p>
     </main>
 
-    <!-- Azure Application Insights (browser SDK) -->
-    <!-- Replace the connectionString with your real one from the Azure portal -->
+    <!-- ========================================================= -->
+    <!--  Azure Application Insights (Browser SDK v3 – global)     -->
+    <!-- ========================================================= -->
+
+    <!-- Load the AI SDK -->
     <script
       src="https://js.monitor.azure.com/scripts/b/ai.3.gbl.min.js"
       crossorigin="anonymous"
     ></script>
-    <script>
-      // Only configure if the SDK loaded correctly
-      if (window.ApplicationInsights) {
-        const ai = new ApplicationInsights({
-          config: {
-            connectionString:
-              "InstrumentationKey=ff4bb0a6-a5ab-4abb-9ea1-a49b3b1f191f;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=db052ca9-9929-464c-b45a-e3dbb7beb53d;IngestionEndpoint=https://YOUR-REGION-0.in.applicationinsights.azure.com/",
-          },
-        });
 
-        ai.loadAppInsights();
-        window.appInsights = ai; // make it visible to ui.js
-        ai.trackPageView({ name: "BP Calculator Page" });
+    <script>
+      // 🔴 IMPORTANT:
+      // Go to Azure Portal → your App Insights resource → Overview → "Connection string"
+      // Copy the FULL connection string and paste it below (replace the placeholder).
+
+      const AI_CONNECTION_STRING =
+        "InstrumentationKey=ff4bb0a6-a5ab-4abb-9ea1-a49b3b1f191f;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/";
+
+      try {
+        // v3 global SDK: Microsoft.ApplicationInsights.ApplicationInsights
+        const appInsightsInstance =
+          new Microsoft.ApplicationInsights.ApplicationInsights({
+            config: {
+              connectionString: AI_CONNECTION_STRING,
+              enableAutoRouteTracking: false,
+            },
+          });
+
+        appInsightsInstance.loadAppInsights();
+
+        // Make it global so ui.js and the console can use it
+        window.appInsights = appInsightsInstance;
+
+        // Page view telemetry
+        appInsightsInstance.trackPageView({ name: "BP Calculator Page" });
+
+        console.log("✅ Application Insights initialised");
+      } catch (e) {
+        console.error("❌ Failed to initialise Application Insights", e);
       }
     </script>
 
-    <!-- Load ONLY the UI layer -->
+    <!-- ========================================================= -->
+    <!--  UI Layer                                                 -->
+    <!-- ========================================================= -->
     <script type="module" src="./ui.js"></script>
   </body>
 </html>

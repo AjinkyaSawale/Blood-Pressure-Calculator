@@ -11,9 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ---------------------------
+      # Checkout source
+      # ---------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ---------------------------
+      # Node.js Setup
+      # ---------------------------
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -22,12 +28,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # ---------------------------
+      # Unit + BDD Tests
+      # ---------------------------
       - name: Run unit tests (Vitest)
         run: npm run test:ci
 
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
+      # ---------------------------
+      # Security Audit
+      # ---------------------------
       - name: Run security audit (npm audit)
         run: npm audit --audit-level=high
 
@@ -58,7 +70,7 @@ jobs:
           path: dependency-check-report
 
       # ---------------------------
-      # Playwright Setup & E2E tests
+      # E2E (Playwright)
       # ---------------------------
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
@@ -67,27 +79,25 @@ jobs:
         run: npm run test:e2e
 
       # ---------------------------
-      # Performance testing with k6 (baseline)
+      # Performance Testing (k6)
       # ---------------------------
       - name: Setup k6
-        uses: grafana/setup-k6-action@v0.3.1
+        uses: grafana/setup-k6-action@v1
 
       - name: Run k6 baseline performance test
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
-
-          # Give server time to start
           sleep 5
 
-          # Run k6 baseline test (10s, thresholds enforced)
+          # Run k6 test (enforces thresholds)
           k6 run perf/bp-baseline.js
 
-          # Try to stop the server; don't fail if it's already dead
+          # Stop server safely
           kill $SERVER_PID || true
 
       # ---------------------------
-      # SonarCloud Scan
+      # SonarCloud Analysis
       # ---------------------------
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
