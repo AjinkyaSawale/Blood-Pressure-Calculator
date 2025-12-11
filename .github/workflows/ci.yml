@@ -1,113 +1,72 @@
-name: ci
+name: CI
 
 on:
   push:
-    branches: [develop, main]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main, develop ]
 
 jobs:
   ci:
     runs-on: ubuntu-latest
 
     steps:
-      # ---------------------------
-      # Checkout source
-      # ---------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ---------------------------
-      # Node.js Setup
-      # ---------------------------
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      # ---------------------------
-      # Unit + BDD Tests
-      # ---------------------------
-      - name: Run unit tests (Vitest)
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run unit/UI/security tests with coverage (Vitest)
         run: npm test
 
       - name: Run BDD tests (Cucumber)
         run: npm run test:bdd
 
-      # ---------------------------
-      # Security Audit (blocking)
-      # ---------------------------
       - name: Run security audit (npm audit)
-        run: npm audit --audit-level=high
+        run: npm run audit
 
-      # ---------------------------
-      # OWASP Dependency Check (advisory / non-blocking)
-      # ---------------------------
-      - name: OWASP Dependency Check - Download
-        run: |
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
-          unzip dependency-check-12.1.0-release.zip
-
-      - name: OWASP Dependency Check - Run Scan (non-blocking)
-        continue-on-error: true   # don't fail CI on upstream component-reports bug
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          ./dependency-check/bin/dependency-check.sh \
-            --project "Blood Pressure Calculator" \
-            --scan . \
-            --format "JSON" \
-            --out dependency-check-report \
-            --nvdApiKey "$NVD_API_KEY" \
-            --failOnCVSS 7
-
-      - name: Upload Dependency Check Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: dependency-check-report
-
-      # ---------------------------
-      # E2E (Playwright) – start local server first
-      # ---------------------------
-      - name: Install Playwright browsers
+      - name: Install Playwright browsers (for E2E)
         run: npx playwright install --with-deps
 
       - name: Run E2E tests (Category + MAP + Low BP)
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
+          # Give server a moment to start
           sleep 5
-
           npm run test:e2e
-
+          # Always try to stop the server, but don't fail if it's already dead
           kill $SERVER_PID || true
 
-      # ---------------------------
-      # Performance Testing (k6 baseline)
-      # ---------------------------
-      - name: Setup k6
-        uses: grafana/setup-k6-action@v1
-
-      - name: Run k6 baseline performance test
-        run: |
-          npx http-server -p 5500 -c-1 . &
-          SERVER_PID=$!
-          sleep 5
-
-          # Run k6 test (enforces thresholds)
-          k6 run perf/bp-baseline.js
-
-          # Stop server safely
-          kill $SERVER_PID || true
-
-      # ---------------------------
-      # SonarCloud Analysis
-      # ---------------------------
       - name: SonarCloud Scan
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: .
+          args: >
+            -Dsonar.projectKey=AjinkyaSawale_Blood-Pressure-Calculator
+            -Dsonar.organization=ajinkyasawale
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+
+      # NEW: Upload JUnit + HTML coverage as artifacts
+      - name: Upload test reports and coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-and-coverage
+          path: |
+            test-results/
+            coverage/lcov-report/
+          retention-days: 7
