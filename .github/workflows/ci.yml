@@ -125,11 +125,13 @@ jobs:
           echo "✅ Staging smoke test passed"
 
   deploy-prod:
+    # Production deployment – protected by GitHub Environment "production"
+    # Manual approval happens in the Environments UI before this job runs.
     needs: [ci, smoke-staging]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment:
-      name: production
+      name: production              # must match the Environment with required reviewers
       url: http://bp-calculator-prod-14992.eastus.azurecontainer.io
 
     steps:
