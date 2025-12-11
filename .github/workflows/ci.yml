@@ -37,7 +37,7 @@ jobs:
       - name: Run security audit (npm audit)
         run: npm run audit
 
-      # 🔽 OWASP Dependency-Check integration (fixed paths) 🔽
+      # 🔽 OWASP Dependency-Check integration 🔽
       - name: OWASP Dependency Check - Download
         run: |
           wget https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.4/dependency-check-10.0.4-release.zip
@@ -46,6 +46,7 @@ jobs:
 
       - name: OWASP Dependency Check - Run Scan
         run: |
+          mkdir -p dependency-check-report
           ./dependency-check/bin/dependency-check.sh \
             --project "BP Calculator" \
             --scan . \
