@@ -95,8 +95,40 @@ jobs:
           location: eastus
           ports: 80
 
-  deploy-prod:
+  smoke-staging:
+    name: Smoke test staging (live)
     needs: ci
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check staging home page returns 200
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          echo "Hitting staging at: $STAGING_URL"
+
+          # Request the page and capture status code
+          HTTP_STATUS=$(curl -s -o smoke.html -w "%{http_code}" "$STAGING_URL")
+
+          echo "HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Expected HTTP 200 from staging, got $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Verify page contains BP title text
+        run: |
+          # Re-use the previously downloaded smoke.html
+          if ! grep -qi "Blood Pressure Category Calculator" smoke.html; then
+            echo "❌ Staging page does not contain expected title text"
+            exit 1
+          fi
+
+          echo "✅ Staging smoke test passed"
+
+  deploy-prod:
+    needs: [ci, smoke-staging]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment:
