@@ -1,4 +1,6 @@
 // ui.js
+/* global appInsights */
+
 import { classifyBp, computePulsePressure, computeMAP } from "./app.js";
 import { recordEvent } from "./telemetry.js";
 
@@ -55,26 +57,47 @@ export function initUI(doc = document) {
       const category = classifyBp(s, d);
       const pulse = computePulsePressure(s, d);
       const map = computeMAP(s, d);
-      const mapRounded = Number(map.toFixed(1));
 
+      // 1) Update UI
       result.textContent =
         `Category: ${category}\n` +
         `Pulse Pressure: ${pulse.value} mmHg${pulse.isWide ? " (Wide)" : ""}\n` +
-        `MAP: ${mapRounded.toFixed(1)} mmHg`;
+        `MAP: ${map.toFixed(1)} mmHg`;
 
-      // Telemetry event for CA: tracks each successful calculation
+      // 2) Custom local telemetry
       recordEvent("bp_calculated", {
         systolic: s,
         diastolic: d,
         category,
         pulsePressure: pulse.value,
         widePulse: pulse.isWide,
-        map: mapRounded,
+        map: Number(map.toFixed(1)),
       });
-    } catch (err) {
+
+      // 3) Azure Application Insights event (if available)
+      if (
+        typeof appInsights !== "undefined" &&
+        appInsights &&
+        typeof appInsights.trackEvent === "function"
+      ) {
+        appInsights.trackEvent(
+          {
+            name: "bp_calculated",
+          },
+          {
+            systolic: s,
+            diastolic: d,
+            category,
+            pulsePressure: pulse.value,
+            widePulse: pulse.isWide,
+            map: Number(map.toFixed(1)),
+          }
+        );
+      }
+    } catch (error) {
       result.textContent =
-        err instanceof Error ? err.message : "Invalid blood pressure input.";
-      // keep UI stable, no re-throw
+        error instanceof Error ? error.message : "Invalid blood pressure input.";
+      // we don't re-throw here to keep UI stable
     }
   });
 

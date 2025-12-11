@@ -1,0 +1,5 @@
+coverage/
+coverage/**
+
+# If nyc/jest/etc ever generate other reports:
+*.log
