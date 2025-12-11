@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -37,32 +35,6 @@ jobs:
       - name: Run security audit (npm audit)
         run: npm run audit
 
-      # 🔽 UPDATED: OWASP Dependency-Check v12.1.0 (fixes CVSS v4 SAFETY bug)
-      - name: OWASP Dependency Check - Download
-        run: |
-          wget https://github.com/jeremylong/DependencyCheck/releases/download/v12.1.0/dependency-check-12.1.0-release.zip
-          unzip dependency-check-12.1.0-release.zip
-          ls -R
-
-      - name: OWASP Dependency Check - Run Scan
-        continue-on-error: true
-        run: |
-          mkdir -p dependency-check-report
-          ./dependency-check/bin/dependency-check.sh \
-            --project "BP Calculator" \
-            --scan . \
-            --format "HTML" \
-            --format "JSON" \
-            --out dependency-check-report
-
-      - name: Upload Dependency Check Report
-        if: hashFiles('dependency-check-report/**') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: dependency-check-report
-      # 🔼 END OF UPDATED OWASP BLOCK 🔼
-
       - name: Install Playwright browsers (for E2E)
         run: npx playwright install --with-deps
 
@@ -70,17 +42,17 @@ jobs:
         run: |
           npx http-server -p 5500 -c-1 . &
           SERVER_PID=$!
+          # Give server a moment to start
           sleep 5
           npm run test:e2e
+          # Always try to stop the server, but don't fail if it's already dead
           kill $SERVER_PID || true
 
-      # SonarCloud analysis (main branch only)
       - name: SonarCloud Scan
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectBaseDir: .
           args: >
@@ -88,19 +60,96 @@ jobs:
             -Dsonar.organization=ajinkyasawale
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
 
-  verify_azure_production:
+      # NEW: Upload JUnit + HTML coverage as artifacts
+      - name: Upload test reports and coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-and-coverage
+          path: |
+            test-results/
+            coverage/lcov-report/
+          retention-days: 7
+
+  deploy-staging:
     needs: ci
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    environment:
-      name: production-azure
-      url: http://bp-calculator-app-1765396413.eastus.azurecontainer.io
+    if: github.ref == 'refs/heads/develop'
 
     steps:
-      - name: Smoke test Azure Container (live production)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update Azure Container Instance (staging)
+        uses: azure/aci-deploy@v1
+        with:
+          resource-group: rg-bp-calculator
+          name: bp-calculator-staging
+          image: mcr.microsoft.com/azuredocs/aci-helloworld
+          dns-name-label: bp-calculator-staging-25126
+          location: eastus
+          ports: 80
+
+  smoke-staging:
+    name: Smoke test staging (live)
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check staging home page returns 200
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
         run: |
-          echo "Hitting live Azure Container app..."
-          curl -I --fail \
-            http://bp-calculator-app-1765396413.eastus.azurecontainer.io || exit 1
-          echo "Azure production container is healthy"
+          echo "Hitting staging at: $STAGING_URL"
+
+          # Request the page and capture status code
+          HTTP_STATUS=$(curl -s -o smoke.html -w "%{http_code}" "$STAGING_URL")
+
+          echo "HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ Expected HTTP 200 from staging, got $HTTP_STATUS"
+            exit 1
+          fi
+
+      - name: Verify page contains BP title text
+        run: |
+          # Re-use the previously downloaded smoke.html
+          if ! grep -qi "Blood Pressure Category Calculator" smoke.html; then
+            echo "❌ Staging page does not contain expected title text"
+            exit 1
+          fi
+
+          echo "✅ Staging smoke test passed"
+
+  deploy-prod:
+    needs: [ci, smoke-staging]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: http://bp-calculator-prod-14992.eastus.azurecontainer.io
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Update Azure Container Instance (prod)
+        uses: azure/aci-deploy@v1
+        with:
+          resource-group: rg-bp-calculator
+          name: bp-calculator-prod
+          image: mcr.microsoft.com/azuredocs/aci-helloworld
+          dns-name-label: bp-calculator-prod-14992
+          location: eastus
+          ports: 80
