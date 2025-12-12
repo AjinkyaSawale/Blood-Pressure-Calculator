@@ -71,7 +71,6 @@ jobs:
   deploy-staging:
     needs: ci
     runs-on: ubuntu-latest
-    # 🔁 runs on both develop and main now
     if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
 
     steps:
@@ -95,7 +94,6 @@ jobs:
 
   smoke-staging:
     name: Smoke test staging (live)
-    # 🔁 now depends on deploy-staging
     needs: deploy-staging
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -127,13 +125,11 @@ jobs:
           echo "✅ Staging smoke test passed"
 
   deploy-prod:
-    # Production deployment – protected by GitHub Environment "production"
-    # Manual approval happens in the Environments UI before this job runs.
     needs: [ci, smoke-staging]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     environment:
-      name: production              # must match the Environment with required reviewers
+      name: production
       url: http://bp-calculator-prod-14992.eastus.azurecontainer.io
 
     steps:
@@ -155,14 +151,11 @@ jobs:
           location: eastus
           ports: 80
 
-  # ─────────────────────────────────────────────
-  # NEW: Build & push container image to ACR (for Container Apps)
-  # ─────────────────────────────────────────────
   build-and-push-image:
     name: Build & push image to ACR (Container Apps)
     needs: ci
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'   # only build/push on main
+    if: github.ref == 'refs/heads/main'
 
     outputs:
       image: ${{ steps.meta.outputs.image }}
@@ -203,9 +196,6 @@ jobs:
         id: meta
         run: echo "image=$IMAGE_SHA" >> "$GITHUB_OUTPUT"
 
-  # ─────────────────────────────────────────────
-  # NEW: Deploy Container Apps infra via Bicep (blue–green ready)
-  # ─────────────────────────────────────────────
   deploy-infra:
     name: Deploy Container App infra (blue–green via Bicep)
     needs: [ci, build-and-push-image]
@@ -223,7 +213,7 @@ jobs:
 
       - name: Ensure containerapp extension is installed
         run: |
-          az extension add --name containerapp --yes || az extension update --name containerapp
+          az extension add --name containerapp --yes || az extension.update --name containerapp
 
       - name: Deploy Bicep (Container App blue–green)
         env:
@@ -242,13 +232,12 @@ jobs:
               acrPassword=${{ secrets.ACR_PASSWORD }}
 
   # ─────────────────────────────────────────────
-  # NEW: OWASP ZAP Baseline Pentest on staging
+  # OWASP ZAP Baseline Pentest – FIXED VERSION
   # ─────────────────────────────────────────────
   zap-pentest:
     name: OWASP ZAP Baseline Pentest (Staging)
     needs: deploy-staging
     runs-on: ubuntu-latest
-    # Only pentest when running from main (production-ish flow)
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -256,12 +245,12 @@ jobs:
         uses: zaproxy/action-baseline@v0.10.0
         with:
           target: ${{ vars.STAGING_URL }}
-          cmd_options: "-a -r zap_report.html"
+          cmd_options: "-a"
         continue-on-error: true
 
       - name: Upload ZAP Report
         uses: actions/upload-artifact@v4
         with:
           name: zap-pentest-report
-          path: zap_report.html
+          path: report_html.html
           retention-days: 7
