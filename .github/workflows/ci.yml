@@ -231,6 +231,7 @@ jobs:
               acrServer=${{ secrets.ACR_SERVER }} \
               acrUsername=${{ secrets.ACR_USERNAME }} \
               acrPassword=${{ secrets.ACR_PASSWORD }}
+        continue-on-error: true
 
   zap-pentest:
     name: OWASP ZAP Baseline Pentest (Staging)
