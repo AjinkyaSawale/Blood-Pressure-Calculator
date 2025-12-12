@@ -154,3 +154,114 @@ jobs:
           dns-name-label: bp-calculator-prod-14992
           location: eastus
           ports: 80
+
+  # ─────────────────────────────────────────────
+  # NEW: Build & push container image to ACR (for Container Apps)
+  # ─────────────────────────────────────────────
+  build-and-push-image:
+    name: Build & push image to ACR (Container Apps)
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'   # only build/push on main
+
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+
+    env:
+      ACR_SERVER: ${{ secrets.ACR_SERVER }}
+      ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+      ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ACR
+        run: echo "$ACR_PASSWORD" | docker login "$ACR_SERVER" -u "$ACR_USERNAME" --password-stdin
+
+      - name: Build & push linux/amd64 image to ACR
+        id: build
+        run: |
+          IMAGE_SHA="$ACR_SERVER/bp-calculator:${GITHUB_SHA}"
+          IMAGE_LATEST="$ACR_SERVER/bp-calculator:latest"
+
+          echo "Building and pushing $IMAGE_SHA and $IMAGE_LATEST"
+
+          docker buildx build \
+            --platform linux/amd64 \
+            -t "$IMAGE_SHA" \
+            -t "$IMAGE_LATEST" \
+            --push \
+            .
+
+          echo "IMAGE_SHA=$IMAGE_SHA" >> "$GITHUB_ENV"
+
+      - name: Export image name for downstream jobs
+        id: meta
+        run: echo "image=$IMAGE_SHA" >> "$GITHUB_OUTPUT"
+
+  # ─────────────────────────────────────────────
+  # NEW: Deploy Container Apps infra via Bicep (blue–green ready)
+  # ─────────────────────────────────────────────
+  deploy-infra:
+    name: Deploy Container App infra (blue–green via Bicep)
+    needs: [ci, build-and-push-image]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Ensure containerapp extension is installed
+        run: |
+          az extension add --name containerapp --yes || az extension update --name containerapp
+
+      - name: Deploy Bicep (Container App blue–green)
+        env:
+          IMAGE: ${{ needs.build-and-push-image.outputs.image }}
+        run: |
+          echo "Deploying infra with image: $IMAGE"
+
+          az deployment group create \
+            -g "${{ secrets.AZURE_RESOURCE_GROUP_IAC }}" \
+            --template-file infra/bluegreen-containerapp.bicep \
+            --parameters \
+              location=${{ secrets.AZURE_LOCATION }} \
+              containerImage=$IMAGE \
+              acrServer=${{ secrets.ACR_SERVER }} \
+              acrUsername=${{ secrets.ACR_USERNAME }} \
+              acrPassword=${{ secrets.ACR_PASSWORD }}
+
+  # ─────────────────────────────────────────────
+  # NEW: OWASP ZAP Baseline Pentest on staging
+  # ─────────────────────────────────────────────
+  zap-pentest:
+    name: OWASP ZAP Baseline Pentest (Staging)
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    # Only pentest when running from main (production-ish flow)
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: OWASP ZAP Baseline Scan (Staging Pentest)
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: ${{ vars.STAGING_URL }}
+          cmd_options: "-a -r zap_report.html"
+        continue-on-error: true
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-pentest-report
+          path: zap_report.html
+          retention-days: 7
