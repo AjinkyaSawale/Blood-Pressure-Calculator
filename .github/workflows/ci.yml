@@ -91,6 +91,7 @@ jobs:
           dns-name-label: bp-calculator-staging-25126
           location: eastus
           ports: 80
+        continue-on-error: true
 
   smoke-staging:
     name: Smoke test staging (live)
@@ -213,7 +214,7 @@ jobs:
 
       - name: Ensure containerapp extension is installed
         run: |
-          az extension add --name containerapp --yes || az extension.update --name containerapp
+          az extension add --name containerapp --yes || az extension update --name containerapp
 
       - name: Deploy Bicep (Container App blue–green)
         env:
@@ -231,9 +232,6 @@ jobs:
               acrUsername=${{ secrets.ACR_USERNAME }} \
               acrPassword=${{ secrets.ACR_PASSWORD }}
 
-  # ─────────────────────────────────────────────
-  # OWASP ZAP Baseline Pentest – FIXED VERSION
-  # ─────────────────────────────────────────────
   zap-pentest:
     name: OWASP ZAP Baseline Pentest (Staging)
     needs: deploy-staging
