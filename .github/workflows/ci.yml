@@ -241,7 +241,7 @@ jobs:
 
     steps:
       - name: OWASP ZAP Baseline Scan (Staging Pentest)
-        uses: zaproxy/action-baseline@v0.10.0
+        uses: zaproxy/action-baseline@v0.15.0
         with:
           target: ${{ vars.STAGING_URL }}
           cmd_options: "-a"
